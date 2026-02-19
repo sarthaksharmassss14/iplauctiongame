@@ -5,14 +5,19 @@ const { Server } = require("socket.io");
 const fs = require('fs');
 const path = require('path');
 const { getBotDecision } = require("./src/lib/botLogic");
-const { saveGameState, loadGameState } = require("./src/lib/persistence");
+const { saveGameState, loadGameState, getPlayersFromDB, updatePlayerInDB } = require("./src/lib/persistence");
 
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
+let playersData = [];
 const playersPath = path.join(__dirname, 'src', 'data', 'players.json');
-const playersData = JSON.parse(fs.readFileSync(playersPath, 'utf8'));
+try {
+    playersData = JSON.parse(fs.readFileSync(playersPath, 'utf8'));
+} catch (e) {
+    console.error("Local players.json not found, relying on DB.");
+}
 
 let auctionState = {
     currentPlayerIndex: 0,
@@ -48,6 +53,13 @@ let teams = teamColors.map((tc, i) => ({
 }));
 
 app.prepare().then(async () => {
+    // Load players from DB first
+    const dbPlayers = await getPlayersFromDB();
+    if (dbPlayers && dbPlayers.length > 0) {
+        playersData = dbPlayers;
+        console.log(`Loaded ${playersData.length} players from Firebase.`);
+    }
+
     const savedState = await loadGameState();
     if (savedState) {
         auctionState = savedState.auctionState;
@@ -187,10 +199,12 @@ app.prepare().then(async () => {
             player.soldPrice = auctionState.currentBid;
             player.teamId = winner.id;
             io.emit("player-sold", { player, team: winner });
+            await updatePlayerInDB(player);
         } else {
             auctionState.status = 'unsold';
             player.status = 'unsold';
             io.emit("player-unsold", { player });
+            await updatePlayerInDB(player);
         }
         auctionState.currentPlayerIndex++;
         await saveGameState(auctionState, teams);

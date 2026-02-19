@@ -1,5 +1,5 @@
 const { initializeApp } = require("firebase/app");
-const { getFirestore, doc, setDoc, getDoc, collection, updateDoc } = require("firebase/firestore");
+const { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc } = require("firebase/firestore");
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -39,4 +39,28 @@ async function loadGameState() {
     return null;
 }
 
-module.exports = { saveGameState, loadGameState };
+async function getPlayersFromDB() {
+    if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) return null;
+    try {
+        const querySnapshot = await getDocs(collection(db, "players"));
+        const players = [];
+        querySnapshot.forEach((doc) => {
+            players.push(doc.data());
+        });
+        return players.sort((a, b) => a.id - b.id);
+    } catch (e) {
+        console.error("Error fetching players from DB:", e);
+    }
+    return null;
+}
+
+async function updatePlayerInDB(player) {
+    if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) return;
+    try {
+        await setDoc(doc(db, "players", player.id.toString()), player, { merge: true });
+    } catch (e) {
+        console.error(`Error updating player ${player.id}:`, e);
+    }
+}
+
+module.exports = { saveGameState, loadGameState, getPlayersFromDB, updatePlayerInDB };
