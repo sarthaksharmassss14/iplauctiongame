@@ -1,1727 +1,1211 @@
 [
   {
+    "name": "Ruturaj Gaikwad",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
     "id": 1,
-    "name": "Rishabh Pant",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380730.png",
-    "stats": {
-      "matches": 111,
-      "runs": 3284,
-      "avg": 35.31,
-      "sr": 148.93
-    },
     "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
+    "role": "Batsman"
   },
   {
+    "name": "Axar Patel",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
     "id": 2,
-    "name": "Shreyas Iyer",
-    "role": "Batsman",
-    "country": "India",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380736.png",
-    "stats": {
-      "matches": 115,
-      "runs": 3127,
-      "avg": 31.59,
-      "sr": 125.84
-    },
     "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
+    "role": "Batsman"
   },
   {
-    "id": 3,
-    "name": "KL Rahul",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380728.png",
-    "stats": {
-      "matches": 132,
-      "runs": 4683,
-      "avg": 45.47,
-      "sr": 134.61
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 4,
-    "name": "Jos Buttler",
-    "role": "Wicketkeeper",
-    "country": "England",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378600/378604.png",
-    "stats": {
-      "matches": 107,
-      "runs": 3582,
-      "avg": 41.65,
-      "sr": 147.23
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 5,
-    "name": "Arshdeep Singh",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380749.png",
-    "stats": {
-      "matches": 65,
-      "wickets": 87,
-      "eco": 8.76,
-      "sr": 15.8
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 6,
-    "name": "Mitchell Starc",
-    "role": "Bowler",
-    "country": "Australia",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378400/378433.png",
-    "stats": {
-      "matches": 41,
-      "wickets": 51,
-      "eco": 8.21,
-      "sr": 17.5
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 7,
-    "name": "Kagiso Rabada",
-    "role": "Bowler",
-    "country": "South Africa",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378500/378521.png",
-    "stats": {
-      "matches": 80,
-      "wickets": 117,
-      "eco": 8.42,
-      "sr": 15.3
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 8,
-    "name": "Liam Livingstone",
-    "role": "All-rounder",
-    "country": "England",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378600/378609.png",
-    "stats": {
-      "matches": 39,
-      "runs": 939,
-      "wickets": 10,
-      "sr": 162.46,
-      "eco": 9.2
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 9,
-    "name": "Yuzvendra Chahal",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380729.png",
-    "stats": {
-      "matches": 160,
-      "wickets": 205,
-      "eco": 7.84,
-      "sr": 17.2
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 10,
-    "name": "Mohammed Shami",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380725.png",
-    "stats": {
-      "matches": 110,
-      "wickets": 127,
-      "eco": 8.44,
-      "sr": 18.2
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 11,
-    "name": "Ishan Kishan",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380732.png",
-    "stats": {
-      "matches": 105,
-      "runs": 2644,
-      "avg": 28.43,
-      "sr": 135.87
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 12,
-    "name": "Trent Boult",
-    "role": "Bowler",
-    "country": "New Zealand",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378700/378721.png",
-    "stats": {
-      "matches": 104,
-      "wickets": 121,
-      "eco": 8.29,
-      "sr": 19.3
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 13,
-    "name": "David Miller",
-    "role": "Batsman",
-    "country": "South Africa",
-    "basePrice": 150,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378500/378522.png",
-    "stats": {
-      "matches": 130,
-      "runs": 2924,
-      "avg": 34.81,
-      "sr": 139.24
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 14,
-    "name": "Quinton de Kock",
-    "role": "Wicketkeeper",
-    "country": "South Africa",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378500/378520.png",
-    "stats": {
-      "matches": 107,
-      "runs": 3157,
-      "avg": 31.26,
-      "sr": 134.23
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 15,
-    "name": "Venkatesh Iyer",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 150,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380746.png",
-    "stats": {
-      "matches": 50,
-      "runs": 1326,
-      "avg": 31.57,
-      "sr": 137.12
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 16,
-    "name": "Bhuvneshwar Kumar",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380737.png",
-    "stats": {
-      "matches": 176,
-      "wickets": 181,
-      "eco": 7.56,
-      "sr": 21.3
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 17,
-    "name": "Harry Brook",
-    "role": "Batsman",
-    "country": "England",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378600/378614.png",
-    "stats": {
-      "matches": 11,
-      "runs": 190,
-      "avg": 21.11,
-      "sr": 123.38
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 18,
-    "name": "Devon Conway",
-    "role": "Batsman",
-    "country": "New Zealand",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378700/378726.png",
-    "stats": {
-      "matches": 23,
-      "runs": 924,
-      "avg": 48.63,
-      "sr": 141.28
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 19,
-    "name": "Wanindu Hasaranga",
-    "role": "Bowler",
-    "country": "Sri Lanka",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378700/378724.png",
-    "stats": {
-      "matches": 30,
-      "wickets": 37,
-      "eco": 8.13,
-      "sr": 16.5
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 20,
-    "name": "David Warner",
-    "role": "Batsman",
-    "country": "Australia",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378400/378430.png",
-    "stats": {
-      "matches": 184,
-      "runs": 6565,
-      "avg": 40.52,
-      "sr": 139.77
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 21,
-    "name": "Glenn Maxwell",
-    "role": "All-rounder",
-    "country": "Australia",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378400/378434.png",
-    "stats": {
-      "matches": 134,
-      "runs": 2771,
-      "wickets": 37,
-      "sr": 156.73,
-      "eco": 8.39
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 22,
-    "name": "Faf du Plessis",
-    "role": "Batsman",
-    "country": "South Africa",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378500/378519.png",
-    "stats": {
-      "matches": 145,
-      "runs": 4571,
-      "avg": 35.71,
-      "sr": 136.32
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 23,
-    "name": "Mohammed Siraj",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380733.png",
-    "stats": {
-      "matches": 93,
-      "wickets": 93,
-      "eco": 8.65,
-      "sr": 21.2
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 24,
-    "name": "Ravichandran Ashwin",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/380700/380723.png",
-    "stats": {
-      "matches": 212,
-      "wickets": 180,
-      "eco": 7.12,
-      "sr": 24.5
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 25,
-    "name": "Pat Cummins",
-    "role": "Bowler",
-    "country": "Australia",
-    "basePrice": 200,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378400/378431.png",
-    "stats": {
-      "matches": 58,
-      "wickets": 63,
-      "eco": 8.54,
-      "sr": 19.8
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 26,
-    "name": "Rachin Ravindra",
-    "role": "All-rounder",
-    "country": "New Zealand",
-    "basePrice": 150,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378700/378716.png",
-    "stats": {
-      "matches": 10,
-      "runs": 222,
-      "sr": 160.87,
-      "avg": 22.2
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 27,
-    "name": "Marco Jansen",
-    "role": "Bowler",
-    "country": "South Africa",
-    "basePrice": 125,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378500/378518.png",
-    "stats": {
-      "matches": 20,
-      "wickets": 25,
-      "eco": 8.9,
-      "sr": 16.8
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 28,
-    "name": "Gerald Coetzee",
-    "role": "Bowler",
-    "country": "South Africa",
-    "basePrice": 125,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378500/378517.png",
-    "stats": {
-      "matches": 10,
-      "wickets": 13,
-      "eco": 10.1,
-      "sr": 14.5
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 29,
-    "name": "Spencer Johnson",
-    "role": "Bowler",
-    "country": "Australia",
-    "basePrice": 100,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378400/378415.png",
-    "stats": {
-      "matches": 5,
-      "wickets": 4,
-      "eco": 9.3,
-      "sr": 22
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 30,
-    "name": "Dilshan Madushanka",
-    "role": "Bowler",
-    "country": "Sri Lanka",
-    "basePrice": 100,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378700/378712.png",
-    "stats": {
-      "matches": 8,
-      "wickets": 10,
-      "eco": 8.5,
-      "sr": 18
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 31,
-    "name": "Nandre Burger",
-    "role": "Bowler",
-    "country": "South Africa",
-    "basePrice": 75,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378500/378512.png",
-    "stats": {
-      "matches": 6,
-      "wickets": 7,
-      "eco": 9.2,
-      "sr": 18.5
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 32,
-    "name": "Azmatullah Omarzai",
-    "role": "All-rounder",
-    "country": "Afghanistan",
-    "basePrice": 50,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378500/378510.png",
-    "stats": {
-      "matches": 7,
-      "runs": 120,
-      "wickets": 4,
-      "sr": 135.5,
-      "eco": 8.8
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 33,
-    "name": "Nuwan Thushara",
-    "role": "Bowler",
-    "country": "Sri Lanka",
-    "basePrice": 50,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378700/378705.png",
-    "stats": {
-      "matches": 7,
-      "wickets": 8,
-      "eco": 8.9,
-      "sr": 17.5
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 34,
-    "name": "Jhye Richardson",
-    "role": "Bowler",
-    "country": "Australia",
-    "basePrice": 150,
-    "image": "https://p.imgci.com/db/PICTURES/CMS/378400/378408.png",
-    "stats": {
-      "matches": 15,
-      "wickets": 19,
-      "eco": 8.5,
-      "sr": 16.5
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 35,
-    "name": "Prithvi Shaw",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 54,
-      "sr": 169
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 36,
-    "name": "Mayank Agarwal",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 64,
-      "sr": 155
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 37,
-    "name": "Karun Nair",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 29,
-      "sr": 160
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 38,
-    "name": "Ajinkya Rahane",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 88,
-      "sr": 164
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 39,
-    "name": "Manish Pandey",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 59,
-      "sr": 150
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 40,
-    "name": "Sarfaraz Khan",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 44,
-      "sr": 167
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 41,
-    "name": "Shahrukh Khan",
-    "role": "Batsman",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 99,
-      "sr": 154
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 42,
-    "name": "Rahul Tripathi",
-    "role": "Batsman",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 28,
-      "sr": 135
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 43,
-    "name": "Abhishek Sharma",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 88,
-      "sr": 145
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 44,
-    "name": "Tilak Varma",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 83,
-      "sr": 146
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 45,
-    "name": "Rinku Singh",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 43,
-      "sr": 158
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 46,
-    "name": "Jitesh Sharma",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 69,
-      "sr": 148
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 47,
-    "name": "Sanju Samson",
-    "role": "Batsman",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 51,
-      "sr": 135
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 48,
-    "name": "Dhruv Jurel",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 72,
-      "sr": 169
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 49,
-    "name": "Dinesh Karthik",
-    "role": "Batsman",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 48,
-      "sr": 135
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 50,
-    "name": "Washington Sundar",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 23,
-      "sr": 141
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 51,
-    "name": "Krunal Pandya",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 94,
-      "sr": 134
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 52,
-    "name": "Deepak Hooda",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 57,
-      "sr": 153
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 53,
-    "name": "Shivam Dube",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 49,
-      "sr": 134
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 54,
-    "name": "Riyan Parag",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 83,
-      "sr": 130
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 55,
-    "name": "Deepak Chahar",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 66,
-      "sr": 159
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 56,
-    "name": "Shardul Thakur",
-    "role": "Batsman",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 46,
-      "sr": 135
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 57,
-    "name": "Harshal Patel",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 88,
-      "sr": 136
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 58,
-    "name": "Avesh Khan",
-    "role": "Batsman",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 32,
-      "sr": 132
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 59,
-    "name": "Umesh Yadav",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 20,
-      "sr": 148
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 60,
-    "name": "T Natarajan",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 29,
-      "sr": 143
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 61,
-    "name": "Rahul Chahar",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 68,
-      "sr": 141
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 62,
-    "name": "Kuldeep Yadav",
-    "role": "Batsman",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 88,
-      "sr": 161
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 63,
-    "name": "Ravi Bishnoi",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 51,
-      "sr": 162
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 64,
-    "name": "Varun Chakaravarthy",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 46,
-      "sr": 154
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 65,
-    "name": "Chetan Sakariya",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 89,
-      "sr": 134
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 66,
-    "name": "Khaleel Ahmed",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 97,
-      "sr": 133
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 67,
-    "name": "Sandeep Sharma",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 66,
-      "sr": 166
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 68,
-    "name": "Mohit Sharma",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 49,
-      "sr": 162
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 69,
-    "name": "Navdeep Saini",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 49,
-      "sr": 158
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 70,
-    "name": "Prasidh Krishna",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 92,
-      "sr": 155
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 71,
-    "name": "Shivam Mavi",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 23,
-      "sr": 165
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 72,
-    "name": "Kamlesh Nagarkoti",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 54,
-      "sr": 145
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 73,
-    "name": "Kartik Tyagi",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 69,
-      "sr": 162
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 74,
-    "name": "Deepak Jaglan",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 79,
-      "sr": 147
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 75,
-    "name": "Nitish Reddy",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 38,
-      "sr": 158
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 76,
-    "name": "Abhishek Porel",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 45,
-      "sr": 150
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 77,
-    "name": "Anuj Rawat",
-    "role": "Batsman",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 43,
-      "sr": 144
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 78,
-    "name": "Prabhsimran Singh",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 91,
-      "sr": 156
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 79,
-    "name": "Shahbaz Ahmed",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 98,
-      "sr": 162
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 80,
-    "name": "Lalit Yadav",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 97,
-      "sr": 158
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 81,
-    "name": "Rahul Tewatia",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 46,
-      "sr": 130
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 82,
-    "name": "Vijay Shankar",
-    "role": "Batsman",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 84,
-      "sr": 165
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 83,
-    "name": "Harpreet Brar",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 98,
-      "sr": 167
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 84,
-    "name": "Mayank Yadav",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 100,
-    "stats": {
-      "matches": 37,
-      "sr": 139
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 85,
-    "name": "Tushar Deshpande",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 75,
-    "stats": {
-      "matches": 43,
-      "sr": 140
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 86,
-    "name": "Akash Deep",
-    "role": "Wicketkeeper",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 68,
-      "sr": 154
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 87,
-    "name": "Mukesh Kumar",
-    "role": "Bowler",
-    "country": "India",
-    "basePrice": 30,
-    "stats": {
-      "matches": 33,
-      "sr": 134
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 88,
-    "name": "Yash Dayal",
-    "role": "All-rounder",
-    "country": "India",
-    "basePrice": 50,
-    "stats": {
-      "matches": 68,
-      "sr": 158
-    },
-    "isForeign": false,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 89,
-    "name": "Travis Head",
-    "role": "Bowler",
-    "country": "Overseas",
-    "basePrice": 200,
-    "stats": {
-      "matches": 67,
-      "sr": 174
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 90,
-    "name": "Mitchell Marsh",
-    "role": "Batsman",
-    "country": "Overseas",
-    "basePrice": 200,
-    "stats": {
-      "matches": 73,
-      "sr": 161
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 91,
     "name": "Rashid Khan",
-    "role": "Wicketkeeper",
-    "country": "Overseas",
     "basePrice": 200,
-    "stats": {
-      "matches": 71,
-      "sr": 151
-    },
-    "isForeign": true,
     "status": "unsold",
     "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 92,
-    "name": "Noor Ahmad",
-    "role": "All-rounder",
-    "country": "Overseas",
-    "basePrice": 100,
-    "stats": {
-      "matches": 40,
-      "sr": 179
-    },
+    "teamId": null,
+    "id": 3,
     "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
+    "role": "Batsman"
   },
   {
-    "id": 93,
-    "name": "Fazalhaq Farooqi",
-    "role": "Wicketkeeper",
-    "country": "Overseas",
-    "basePrice": 150,
-    "stats": {
-      "matches": 36,
-      "sr": 154
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 94,
-    "name": "Rahmanullah Gurbaz",
-    "role": "Wicketkeeper",
-    "country": "Overseas",
+    "name": "Rinku Singh",
     "basePrice": 200,
-    "stats": {
-      "matches": 64,
-      "sr": 182
-    },
-    "isForeign": true,
     "status": "unsold",
     "soldPrice": 0,
-    "teamId": null
+    "teamId": null,
+    "id": 4,
+    "isForeign": false,
+    "role": "Batsman"
   },
   {
-    "id": 95,
-    "name": "Sam Curran",
-    "role": "Batsman",
-    "country": "Overseas",
-    "basePrice": 200,
-    "stats": {
-      "matches": 18,
-      "sr": 149
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 96,
-    "name": "Phil Salt",
-    "role": "Wicketkeeper",
-    "country": "Overseas",
-    "basePrice": 150,
-    "stats": {
-      "matches": 47,
-      "sr": 182
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 97,
     "name": "Nicholas Pooran",
-    "role": "Batsman",
-    "country": "Overseas",
     "basePrice": 200,
-    "stats": {
-      "matches": 27,
-      "sr": 167
-    },
-    "isForeign": true,
     "status": "unsold",
     "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 98,
-    "name": "Andre Russell",
-    "role": "Bowler",
-    "country": "Overseas",
-    "basePrice": 200,
-    "stats": {
-      "matches": 62,
-      "sr": 149
-    },
+    "teamId": null,
+    "id": 5,
     "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
+    "role": "Batsman"
   },
   {
-    "id": 99,
-    "name": "Sunil Narine",
-    "role": "All-rounder",
-    "country": "Overseas",
-    "basePrice": 150,
-    "stats": {
-      "matches": 66,
-      "sr": 159
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 100,
-    "name": "Shimron Hetmyer",
-    "role": "Bowler",
-    "country": "Overseas",
-    "basePrice": 100,
-    "stats": {
-      "matches": 23,
-      "sr": 172
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 101,
-    "name": "Rovman Powell",
-    "role": "All-rounder",
-    "country": "Overseas",
-    "basePrice": 200,
-    "stats": {
-      "matches": 34,
-      "sr": 169
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 102,
-    "name": "Heinrich Klaasen",
-    "role": "Bowler",
-    "country": "Overseas",
-    "basePrice": 150,
-    "stats": {
-      "matches": 72,
-      "sr": 141
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 103,
-    "name": "Aiden Markram",
-    "role": "All-rounder",
-    "country": "Overseas",
-    "basePrice": 200,
-    "stats": {
-      "matches": 15,
-      "sr": 170
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 104,
-    "name": "Daryl Mitchell",
-    "role": "Wicketkeeper",
-    "country": "Overseas",
-    "basePrice": 200,
-    "stats": {
-      "matches": 61,
-      "sr": 187
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 105,
-    "name": "Glenn Phillips",
-    "role": "Wicketkeeper",
-    "country": "Overseas",
-    "basePrice": 200,
-    "stats": {
-      "matches": 64,
-      "sr": 140
-    },
-    "isForeign": true,
-    "status": "unsold",
-    "soldPrice": 0,
-    "teamId": null
-  },
-  {
-    "id": 106,
     "name": "Matheesha Pathirana",
-    "role": "Batsman",
-    "country": "Overseas",
     "basePrice": 200,
-    "stats": {
-      "matches": 40,
-      "sr": 154
-    },
-    "isForeign": true,
     "status": "unsold",
     "soldPrice": 0,
-    "teamId": null
+    "teamId": null,
+    "id": 6,
+    "isForeign": true,
+    "role": "Batsman"
   },
   {
-    "id": 107,
-    "name": "Maheesh Theekshana",
-    "role": "Bowler",
-    "country": "Overseas",
+    "name": "Kuldeep Yadav",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 7,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Shubman Gill",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 8,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Varun Chakaravarthy",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 9,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Ravi Bishnoi",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 10,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Shivam Dube",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 11,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Tristan Stubbs",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 12,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Sai Sudharsan",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 13,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Sunil Narine",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 14,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Mayank Yadav",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 15,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Ravindra Jadeja",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 16,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Abhishek Porel",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 17,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Rahul Tewatia",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 18,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Andre Russell",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 19,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Mohsin Khan",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 20,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "MS Dhoni",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 21,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Shahrukh Khan",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 22,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Harshit Rana",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 23,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Ayush Badoni",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 24,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Ramandeep Singh",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 25,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Jasprit Bumrah",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 26,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Shashank Singh",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 27,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Sanju Samson",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 28,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Virat Kohli",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 29,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Pat Cummins",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 30,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Suryakumar Yadav",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 31,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Prabhsimran Singh",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 32,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Yashaswi Jaiswal",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 33,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Rajat Patidar",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 34,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Abhishek Sharma",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 35,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Hardik Pandya",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 36,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Riyan Parag",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 37,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Yash Dayal",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 38,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Nitish Kumar Reddy",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 39,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Rohit Sharma",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 40,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Tilak Verma",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 41,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Heinrich Klaasen",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 42,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Travis Head",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 43,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Shimron Hetmyer",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 44,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Sandeep Sharma",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 45,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Jos Buttler",
+    "country": "England",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 46,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Shreyas Iyer",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 47,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Rishabh Pant",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 48,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Kagiso Rabada South",
+    "country": "Africa",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 49,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Arshdeep Singh",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 50,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Mitchell Starc",
+    "country": "Australia",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 51,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Yuzvendra Chahal",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 52,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Liam Livingstone",
+    "country": "England",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 53,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "David Miller South",
+    "country": "Africa",
     "basePrice": 150,
-    "stats": {
-      "matches": 41,
-      "sr": 181
-    },
-    "isForeign": true,
     "status": "unsold",
     "soldPrice": 0,
-    "teamId": null
+    "teamId": null,
+    "id": 54,
+    "isForeign": true,
+    "role": "Batsman"
   },
   {
-    "id": 108,
-    "name": "Kusal Mendis",
-    "role": "All-rounder",
-    "country": "Overseas",
-    "basePrice": 100,
-    "stats": {
-      "matches": 66,
-      "sr": 145
-    },
-    "isForeign": true,
+    "name": "KL Rahul",
+    "country": "India",
+    "basePrice": 200,
     "status": "unsold",
     "soldPrice": 0,
-    "teamId": null
+    "teamId": null,
+    "id": 55,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Mohammad Shami",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 56,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Mohammad Siraj",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 57,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Harry Brook",
+    "country": "England",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 58,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Devon Conway New",
+    "country": "Zealand",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 59,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Jake Fraser-Mcgurk",
+    "country": "Australia",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 60,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Aiden Markram South",
+    "country": "Africa",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 61,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Devdutt Padikkal",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 62,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Rahul Tripathi",
+    "country": "India",
+    "basePrice": 75,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 63,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "David Warner",
+    "country": "Australia",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 64,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Ravichandran Ashwin",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 65,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Venkatesh Iyer",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 66,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Mitchell Marsh",
+    "country": "Australia",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 67,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Glenn Maxwell",
+    "country": "Australia",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 68,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Harshal Patel",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 69,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Rachin Ravindra New",
+    "country": "Zealand",
+    "basePrice": 150,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 70,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Marcus Stoinis",
+    "country": "Australia",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 71,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Jonny Bairstow",
+    "country": "England",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 72,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Quinton De Kock South",
+    "country": "Africa",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 73,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Rahmanullah Gurbaz",
+    "country": "Afghanistan",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 74,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Ishan Kishan",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 75,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Phil Salt",
+    "country": "England",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 76,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Jitesh Sharma",
+    "country": "India",
+    "basePrice": 100,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 77,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Khaleel Ahmed",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 78,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Trent Boult New",
+    "country": "Zealand",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 79,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Josh Hazlewood",
+    "country": "Australia",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 80,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Avesh Khan",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 81,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Prasidh Krishna",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 82,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "T. Natarajan",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 83,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Anrich Nortje South",
+    "country": "Africa",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 84,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Noor Ahmad",
+    "country": "Afghanistan",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 85,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Rahul Chahar",
+    "country": "India",
+    "basePrice": 100,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 86,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Wanindu Hasaranga Sri",
+    "country": "Lanka",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 87,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Maheesh Theekshana Sri",
+    "country": "Lanka",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 88,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Adam Zampa",
+    "country": "Australia",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 89,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Faf Du Plessis South",
+    "country": "Africa",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 90,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Rovman Powell West",
+    "country": "Indies",
+    "basePrice": 150,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 91,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Ajinkya Rahane",
+    "country": "India",
+    "basePrice": 150,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 92,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Kane Williamson New",
+    "country": "Zealand",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 93,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Sam Curran",
+    "country": "England",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 94,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Marco Jansen South",
+    "country": "Africa",
+    "basePrice": 125,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 95,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Krunal Pandya",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 96,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Nitish Rana",
+    "country": "India",
+    "basePrice": 150,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 97,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Washington Sundar",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 98,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Shardul Thakur",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 99,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Deepak Chahar",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 100,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Gerald Coetzee South",
+    "country": "Africa",
+    "basePrice": 125,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 101,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Tushar Deshpande",
+    "country": "India",
+    "basePrice": 100,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 102,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Lockie Ferguson New",
+    "country": "Zealand",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 103,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Bhuvneshwar Kumar",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 104,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Mukesh Kumar",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 105,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Adil Rashid",
+    "country": "England",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 106,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Mustafizur Rahman",
+    "country": "Bangladesh",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 107,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Ishant Sharma",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 108,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Jaydev Unadkat",
+    "country": "India",
+    "basePrice": 100,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 109,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Umesh Yadav",
+    "country": "India",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 110,
+    "isForeign": false,
+    "role": "Batsman"
+  },
+  {
+    "name": "Steve Smith",
+    "country": "Australia",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 111,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Jason Holder West",
+    "country": "Indies",
+    "basePrice": 200,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 112,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Shakib Al Hasan",
+    "country": "Bangladesh",
+    "basePrice": 100,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 113,
+    "isForeign": true,
+    "role": "Batsman"
+  },
+  {
+    "name": "Tim Southee New",
+    "country": "Zealand",
+    "basePrice": 150,
+    "status": "unsold",
+    "soldPrice": 0,
+    "teamId": null,
+    "id": 114,
+    "isForeign": true,
+    "role": "Batsman"
   }
 ]
