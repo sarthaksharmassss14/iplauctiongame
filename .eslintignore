@@ -1,0 +1,5 @@
+server.js
+scripts/
+next.config.js
+src/lib/persistence.js
+src/lib/botLogic.js

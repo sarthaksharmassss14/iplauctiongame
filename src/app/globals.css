@@ -1,27 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;900&display=swap');
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --background: #020617;
+  --foreground: #ffffff;
+  --accent: #facc15;
+  --accent-glow: rgba(250, 204, 21, 0.4);
+  
+  /* Primary Team Colors */
+  --csk-yellow: #f6f611;
+  --mi-blue: #083f88;
+  --rcb-red: #821922;
+  --kkr-purple: #3a0e7b;
+  --dc-blue: #07c2f6;
+  --pbks-red: #ed1b24;
+  --rr-pink: #e50693;
+  --srh-orange: #f96b05;
+  --lsg-teal: #51c8a8;
+  --gt-blue: #1b274a;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Secondary Team Colors */
+  --csk-secondary: #005FA2;
+  --mi-secondary: #C99212;
+  --rcb-secondary: #77772c;
+  --kkr-secondary: #D4AF37;
+  --dc-secondary: #E41D2C;
+  --pbks-secondary: #c0ab26;
+  --rr-secondary: #004B8D;
+  --srh-secondary: #f9ebeb;
+  --lsg-secondary: #fd7a07;
+  --gt-secondary: #A4893D;
 }
 
 * {
@@ -30,13 +37,122 @@ body {
   margin: 0;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Outfit', sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+  /* Cinematic Background Mesh */
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(16, 115, 228, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(215, 233, 24, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(130, 25, 34, 0.15) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(58, 14, 123, 0.15) 0px, transparent 50%);
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 32px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.franchise-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 850px;
+  margin: 0 auto;
+}
+
+.team-card {
+  position: relative;
+  height: 150px;
+  border-radius: 28px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.team-card.selected {
+  border-color: var(--accent);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.team-logo-container {
+  width: 85px;
+  height: 85px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: transform 0.4s ease;
+}
+
+.team-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.team-name-label {
+  font-size: 15px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  z-index: 2;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+  font-weight: 950;
+  text-transform: uppercase;
+  padding: 20px 40px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 2px;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 30px rgba(250, 204, 21, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 15px 40px rgba(250, 204, 21, 0.5);
+}
+
+.glow-text {
+  background: linear-gradient(to bottom, #fff 30%, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(255,255,255,0.2));
+}
+
+/* Background Blobs */
+.blob {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  filter: blur(100px);
+  z-index: -1;
+  opacity: 0.2;
+  animation: move 20s infinite alternate;
+}
+
+@keyframes move {
+  from { transform: translate(0, 0); }
+  to { transform: translate(100px, 100px); }
 }
