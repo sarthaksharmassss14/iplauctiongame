@@ -78,6 +78,7 @@ export default function Home() {
 
   const handleBid = () => {
     if (!currentPlayer || auctionState?.status !== 'bidding' || !socketRef.current) return;
+    if (auctionState.highestBidderId === myTeamId) return; // Prevent self-bidding
     socketRef.current.emit("place-bid", { teamId: myTeamId, bidAmount: auctionState.currentBid + 0.5 });
   };
 
@@ -317,19 +318,82 @@ export default function Home() {
                     </div>
                     <p style={{ fontSize: '12px', fontWeight: 900, color: '#94a3b8', letterSpacing: '2px', marginBottom: '32px' }}>CURRENT HIGHEST BID</p>
 
-                    <button className="btn-primary" onClick={handleBid} style={{ width: '100%', fontSize: '2.4rem', height: '90px' }}>PLACE BID</button>
+                    <button
+                      onClick={handleBid}
+                      disabled={auctionState.highestBidderId === myTeam?.id}
+                      style={{
+                        width: '100%',
+                        fontSize: '2.4rem',
+                        height: '90px',
+                        background: auctionState.highestBidderId === myTeam?.id ? '#334155' : 'var(--accent)',
+                        opacity: auctionState.highestBidderId === myTeam?.id ? 0.6 : 1,
+                        cursor: auctionState.highestBidderId === myTeam?.id ? 'not-allowed' : 'pointer',
+                        border: 'none',
+                        color: 'white',
+                        fontWeight: 900
+                      }}
+                    >
+                      {auctionState.highestBidderId === myTeam?.id ? 'HIGHEST BIDDER' : 'PLACE BID'}
+                    </button>
                   </div>
 
-                  <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', inset: -20, background: `radial-gradient(circle, ${myTeam?.color}33 0%, transparent 70%)`, zIndex: -1 }}></div>
-                    <motion.img
-                      key={currentPlayer.id}
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      src={currentPlayer.image || "https://www.iplt20.com/assets/images/default-player.png"}
-                      alt={currentPlayer.name}
-                      style={{ width: '100%', height: 'auto', maxHeight: '450px', objectFit: 'contain', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5))' }}
-                    />
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+
+                    {/* Background Glow */}
+                    <div style={{ position: 'absolute', inset: -20, background: `radial-gradient(circle, ${teamData.find(t => t.id === auctionState.highestBidderId)?.color || 'rgba(255,255,255,0.1)'} 0%, transparent 60%)`, zIndex: -1, opacity: 0.6 }}></div>
+
+                    {/* Active Bidder Card */}
+                    <AnimatePresence mode="popLayout">
+                      {auctionState.highestBidderId ? (
+                        (() => {
+                          const bidder = teams.find(t => t.id === auctionState.highestBidderId);
+                          return (
+                            <motion.div
+                              key={bidder?.id}
+                              initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                              animate={{ scale: 1, opacity: 1, y: 0 }}
+                              exit={{ scale: 0.8, opacity: 0, y: -20 }}
+                              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                              style={{
+                                background: `linear-gradient(135deg, ${bidder?.color} 0%, rgba(0,0,0,0.9) 100%)`,
+                                padding: '40px',
+                                borderRadius: '30px',
+                                border: `1px solid rgba(255,255,255,0.2)`,
+                                boxShadow: `0 20px 50px ${bidder?.color}66`,
+                                textAlign: 'center',
+                                width: '100%',
+                                maxWidth: '450px'
+                              }}
+                            >
+                              <p style={{ fontSize: '14px', fontWeight: 900, color: 'rgba(255,255,255,0.8)', letterSpacing: '4px', marginBottom: '20px' }}>CURRENT HIGHEST BIDDER</p>
+
+                              {bidder?.logo && (
+                                <motion.img
+                                  initial={{ scale: 0.8 }}
+                                  animate={{ scale: 1.1 }}
+                                  transition={{ repeat: Infinity, repeatType: "reverse", duration: 2 }}
+                                  src={bidder.logo}
+                                  style={{ width: '180px', height: '180px', objectFit: 'contain', margin: '0 auto 24px', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.5))' }}
+                                />
+                              )}
+
+                              <h2 style={{ fontSize: '3.5rem', fontWeight: 950, color: 'white', lineHeight: 1 }}>{bidder?.name}</h2>
+                              <p style={{ fontSize: '2rem', marginTop: '10px', color: 'rgba(255,255,255,0.6)', fontWeight: 800 }}>{bidder?.short}</p>
+                            </motion.div>
+                          )
+                        })()
+                      ) : (
+                        <div style={{ textAlign: 'center', opacity: 0.5 }}>
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                          >
+                            <Gavel size={120} color="rgba(255,255,255,0.2)" />
+                          </motion.div>
+                          <p style={{ marginTop: '20px', fontSize: '1.5rem', fontWeight: 900, color: '#94a3b8' }}>WAITING FOR BIDS...</p>
+                        </div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </motion.div>
@@ -341,11 +405,25 @@ export default function Home() {
               >
                 <div className="glass" style={{ padding: '60px', borderRadius: '40px', border: '2px solid var(--accent)', background: 'rgba(10, 10, 10, 0.4)', textAlign: 'center' }}>
                   {auctionState?.status === 'sold' ? (
-                    <>
-                      <Trophy size={100} color="var(--accent)" style={{ margin: '0 auto 24px', filter: 'drop-shadow(0 0 20px var(--accent))' }} />
-                      <h2 style={{ fontSize: '4rem', fontWeight: 950, color: 'white' }}>SOLD OUT!</h2>
-                      <p style={{ fontSize: '1.2rem', color: '#94a3b8', fontWeight: 800, marginTop: '12px' }}>PREPARING FOR NEXT SUPERSTAR...</p>
-                    </>
+                    (() => {
+                      const winner = teams.find(t => t.id === auctionState.highestBidderId);
+                      return (
+                        <>
+                          <Trophy size={80} color={winner?.color || "var(--accent)"} style={{ margin: '0 auto 24px', filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.4))' }} />
+                          <h2 style={{ fontSize: '4rem', fontWeight: 950, color: 'white', marginBottom: '8px' }}>SOLD!</h2>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', margin: '24px 0' }}>
+                            {winner?.logo && <img src={winner.logo} style={{ width: '80px', height: '80px', objectFit: 'contain' }} />}
+                            <div style={{ textAlign: 'left' }}>
+                              <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 900, textTransform: 'uppercase' }}>SOLD TO</p>
+                              <p style={{ fontSize: '2rem', fontWeight: 950, color: winner?.color || 'white' }}>{winner?.short}</p>
+                            </div>
+                          </div>
+                          <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px 24px', borderRadius: '12px', display: 'inline-block' }}>
+                            <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'white' }}>{auctionState.currentBid.toFixed(2)} CR</span>
+                          </div>
+                        </>
+                      );
+                    })()
                   ) : auctionState?.status === 'unsold' ? (
                     <>
                       <Gavel size={100} color="#64748b" style={{ margin: '0 auto 24px' }} />
@@ -354,9 +432,18 @@ export default function Home() {
                     </>
                   ) : (
                     <>
-                      <Timer size={100} color="var(--accent)" style={{ margin: '0 auto 24px', animation: 'pulse 2s infinite' }} />
+                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <Timer size={100} color="var(--accent)" style={{ margin: '0 auto 24px', animation: 'pulse 2s infinite' }} />
+                        <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2rem', fontWeight: 900, color: 'white' }}>
+                          {auctionState.timer > 0 ? auctionState.timer : ''}
+                        </span>
+                      </div>
                       <h2 style={{ fontSize: '3rem', fontWeight: 950, color: 'white' }}>AUCTION STARTING...</h2>
                       <p style={{ fontSize: '1.2rem', color: '#94a3b8', fontWeight: 800, marginTop: '12px' }}>FRANCHISES ARE JOINING THE ARENA</p>
+                      {/* Check if user is human owner of team 0 (or generally allow any human to start) */}
+                      <button onClick={startNextAuction} style={{ marginTop: '32px', padding: '16px 32px', background: 'var(--accent)', border: 'none', borderRadius: '12px', fontWeight: 900, cursor: 'pointer', fontSize: '1.2rem' }}>
+                        START AUCTION
+                      </button>
                     </>
                   )}
                 </div>

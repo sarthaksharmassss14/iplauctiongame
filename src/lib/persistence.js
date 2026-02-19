@@ -1,5 +1,5 @@
 const { initializeApp } = require("firebase/app");
-const { getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc } = require("firebase/firestore");
+const { getFirestore, doc, setDoc, getDoc, collection, getDocs } = require("firebase/firestore");
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,28 +13,36 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// Helper function for timeout
+const withTimeout = (promise, ms = 3000) => {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Firebase Timeout")), ms))
+    ]);
+};
+
 async function saveGameState(auctionState, teams) {
     if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) return;
     try {
-        await setDoc(doc(db, "auction", "current_state"), {
+        await withTimeout(setDoc(doc(db, "auction", "current_state"), {
             auctionState,
             teams,
             updatedAt: new Date()
-        });
+        }));
     } catch (e) {
-        console.error("Error saving state:", e);
+        console.warn("Persistence: Save failed (offline or timeout)");
     }
 }
 
 async function loadGameState() {
     if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) return null;
     try {
-        const docSnap = await getDoc(doc(db, "auction", "current_state"));
+        const docSnap = await withTimeout(getDoc(doc(db, "auction", "current_state")));
         if (docSnap.exists()) {
             return docSnap.data();
         }
     } catch (e) {
-        console.error("Error loading state:", e);
+        console.warn("Persistence: Load failed (offline or timeout)");
     }
     return null;
 }
@@ -42,14 +50,14 @@ async function loadGameState() {
 async function getPlayersFromDB() {
     if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) return null;
     try {
-        const querySnapshot = await getDocs(collection(db, "players"));
+        const querySnapshot = await withTimeout(getDocs(collection(db, "players")), 5000);
         const players = [];
         querySnapshot.forEach((doc) => {
             players.push(doc.data());
         });
         return players.sort((a, b) => a.id - b.id);
     } catch (e) {
-        console.error("Error fetching players from DB:", e);
+        console.error("Persistence: Fetch players failed:", e.message);
     }
     return null;
 }
@@ -57,9 +65,9 @@ async function getPlayersFromDB() {
 async function updatePlayerInDB(player) {
     if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) return;
     try {
-        await setDoc(doc(db, "players", player.id.toString()), player, { merge: true });
+        await withTimeout(setDoc(doc(db, "players", player.id.toString()), player, { merge: true }));
     } catch (e) {
-        console.error(`Error updating player ${player.id}:`, e);
+        console.warn(`Persistence: Update player ${player.id} failed`);
     }
 }
 

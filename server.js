@@ -28,27 +28,29 @@ let auctionState = {
     status: 'idle', 
 };
 
-const teamColors = [
-    { main: 'var(--csk-yellow)', name: 'Chennai Super Kings' },
-    { main: 'var(--mi-blue)', name: 'Mumbai Indians' },
-    { main: 'var(--rcb-red)', name: 'Royal Challengers Bengaluru' },
-    { main: 'var(--kkr-purple)', name: 'Kolkata Knight Riders' },
-    { main: 'var(--dc-blue)', name: 'Delhi Capitals' },
-    { main: 'var(--pbks-red)', name: 'Punjab Kings' },
-    { main: 'var(--rr-pink)', name: 'Rajasthan Royals' },
-    { main: 'var(--srh-orange)', name: 'Sunrisers Hyderabad' },
-    { main: 'var(--lsg-teal)', name: 'Lucknow Super Giants' },
-    { main: 'var(--gt-blue)', name: 'Gujarat Titans' }
+const teamData = [
+    { id: "team_0", name: "Chennai Super Kings", short: "CSK", color: "var(--csk-yellow)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/300px-Chennai_Super_Kings_Logo.svg.png" },
+    { id: "team_1", name: "Mumbai Indians", short: "MI", color: "var(--mi-blue)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Mumbai_Indians_Logo.svg/300px-Mumbai_Indians_Logo.svg.png" },
+    { id: "team_2", name: "Royal Challengers Bengaluru", short: "RCB", color: "var(--rcb-red)", logo: "https://upload.wikimedia.org/wikipedia/commons/1/1e/%E0%A4%B0%E0%A5%89%E0%A4%AF%E0%A4%B2_%E0%A4%9A%E0%A5%88%E0%A4%B2%E0%A5%87%E0%A4%82%E0%A4%9C%E0%A4%B0%E0%A5%8D%E0%A4%B8_%E0%A4%AC%E0%A5%87%E0%A4%82%E0%A4%97%E0%A4%B2%E0%A5%81%E0%A4%B0%E0%A5%81_%E0%A4%B2%E0%A5%8B%E0%A4%97%E0%A5%8B.png" },
+    { id: "team_3", name: "Kolkata Knight Riders", short: "KKR", color: "var(--kkr-purple)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/300px-Kolkata_Knight_Riders_Logo.svg.png" },
+    { id: "team_4", name: "Delhi Capitals", short: "DC", color: "var(--dc-blue)", logo: "https://upload.wikimedia.org/wikipedia/en/2/2f/Delhi_Capitals.svg" },
+    { id: "team_5", name: "Punjab Kings", short: "PBKS", color: "var(--pbks-red)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Punjab_Kings_Logo.svg/300px-Punjab_Kings_Logo.svg.png" },
+    { id: "team_6", name: "Rajasthan Royals", short: "RR", color: "var(--rr-pink)", logo: "https://upload.wikimedia.org/wikipedia/en/5/5c/This_is_the_logo_for_Rajasthan_Royals%2C_a_cricket_team_playing_in_the_Indian_Premier_League_%28IPL%29.svg" },
+    { id: "team_7", name: "Sunrisers Hyderabad", short: "SRH", color: "var(--srh-orange)", logo: "https://upload.wikimedia.org/wikipedia/en/5/51/Sunrisers_Hyderabad_Logo.svg" },
+    { id: "team_8", name: "Lucknow Super Giants", short: "LSG", color: "var(--lsg-teal)", logo: "https://upload.wikimedia.org/wikipedia/en/a/a9/Lucknow_Super_Giants_IPL_Logo.svg" },
+    { id: "team_9", name: "Gujarat Titans", short: "GT", color: "var(--gt-blue)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/300px-Gujarat_Titans_Logo.svg.png" }
 ];
 
-let teams = teamColors.map((tc, i) => ({
-    id: `team_${i}`,
+let teams = teamData.map((tc, i) => ({
+    id: tc.id,
     name: tc.name,
+    short: tc.short,
     owner: `Bot ${i}`,
     budget: 100, 
     squad: [],
     foreignCount: 0,
-    color: tc.main,
+    color: tc.color,
+    logo: tc.logo,
     isBot: true,
     socketId: null
 }));
@@ -75,8 +77,10 @@ app.prepare().then(async () => {
     const io = new Server(httpServer);
 
     io.on("connection", (socket) => {
+        console.log(`[SOCKET] New connection: ${socket.id}`);
+
         socket.on("join-auction", (data) => {
-            // Assign user to their selected team if provided and available
+            console.log(`[SOCKET] User joining: ${data.userId} for team ${data.teamId}`);
             let assignedTeam = null;
             if (data.teamId) {
                 const team = teams.find(t => t.id === data.teamId);
@@ -85,7 +89,6 @@ app.prepare().then(async () => {
                 }
             }
             
-            // Fallback to first available if no selection or selection unavailable
             if (!assignedTeam) {
                 assignedTeam = teams.find(t => t.isBot);
             }
@@ -95,19 +98,27 @@ app.prepare().then(async () => {
                 assignedTeam.owner = data.userId || "Human";
                 assignedTeam.socketId = socket.id;
                 socket.emit("assigned-team", assignedTeam.id);
+                console.log(`[SOCKET] Assigned ${assignedTeam.name} to ${socket.id}`);
             }
             socket.emit("init-state", { auctionState, teams, players: playersData });
 
-            // AUTO-START: If auction is idle and a human has joined, wait 5s then start
             if (auctionState.status === 'idle') {
-                console.log("Human joined. Starting auction in 5 seconds...");
-                setTimeout(() => {
-                    if (auctionState.status === 'idle') startNewRound();
-                }, 5000);
+                console.log("[AUCTION] Human joined. Starting rounds in 5 seconds...");
+                auctionState.status = 'starting';
+                let countdown = 5;
+                const startInterval = setInterval(() => {
+                    countdown--;
+                    io.emit("timer-tick", countdown);
+                    if (countdown <= 0) {
+                        clearInterval(startInterval);
+                        if (auctionState.status === 'starting') startNewRound();
+                    }
+                }, 1000);
             }
         });
 
         socket.on("disconnect", () => {
+            console.log(`[SOCKET] Disconnected: ${socket.id}`);
             const team = teams.find(t => t.socketId === socket.id);
             if (team) {
                 team.socketId = null;
@@ -115,10 +126,12 @@ app.prepare().then(async () => {
         });
 
         socket.on("place-bid", ({ teamId, bidAmount }) => {
+            if (teamId === auctionState.highestBidderId) return; // Prevent self-bidding
             if (bidAmount > auctionState.currentBid && auctionState.status === 'bidding') {
                 auctionState.currentBid = bidAmount;
                 auctionState.highestBidderId = teamId;
                 auctionState.timer = 10;
+                console.log(`[BID] Manual bid: ${teamId} -> ${bidAmount} Cr`);
                 io.emit("bid-updated", { 
                     currentBid: auctionState.currentBid, 
                     highestBidderId: auctionState.highestBidderId,
@@ -135,28 +148,38 @@ app.prepare().then(async () => {
     function startNewRound() {
         if (auctionState.currentPlayerIndex >= playersData.length) {
             auctionState.status = 'finished';
+            console.log("[AUCTION] Finished!");
             io.emit("auction-finished");
             return;
         }
+        
         const player = playersData[auctionState.currentPlayerIndex];
         auctionState.status = 'bidding';
         auctionState.currentBid = player.basePrice / 100;
         auctionState.highestBidderId = null;
         auctionState.timer = 10;
+        
+        console.log(`[ROUND] Starting: ${player.name} (Base: ${auctionState.currentBid} Cr)`);
         io.emit("new-round", { player, currentBid: auctionState.currentBid, timer: 10 });
 
         const timerInterval = setInterval(async () => {
-            // Emit tick first so UI updates immediately
+            if (auctionState.status !== 'bidding') {
+                clearInterval(timerInterval);
+                return;
+            }
+
+            // Emit tick
             io.emit("timer-tick", auctionState.timer);
             
             if (auctionState.timer <= 0) {
                 clearInterval(timerInterval);
+                console.log(`[ROUND] Timer finished for ${player.name}`);
                 resolveRound();
                 return;
             }
 
             // Run bot logic asynchronously
-            handleBotBids().catch(err => console.error("Bot Handle Error:", err));
+            handleBotBids().catch(err => console.error("[BOT ERROR]", err.message));
             auctionState.timer--;
         }, 1000);
     }
@@ -166,7 +189,7 @@ app.prepare().then(async () => {
 
         const potentialBots = teams.filter(t => t.isBot && t.id !== auctionState.highestBidderId)
                                 .sort(() => Math.random() - 0.5)
-                                .slice(0, 3);
+                                .slice(0, 2); 
 
         for (const team of potentialBots) {
             const player = playersData[auctionState.currentPlayerIndex];
@@ -179,7 +202,7 @@ app.prepare().then(async () => {
                 auctionState.highestBidderId = team.id;
                 auctionState.timer = 10;
                 
-                console.log(`[BOT BID] ${team.name} bid ${auctionState.currentBid} Cr for ${player.name}`);
+                console.log(`[BOT BID] ${team.name} -> ${auctionState.currentBid} Cr`);
                 
                 io.emit("bid-updated", { 
                     currentBid: auctionState.currentBid, 
@@ -192,6 +215,8 @@ app.prepare().then(async () => {
     }
 
     async function resolveRound() {
+        if (auctionState.status !== 'bidding') return;
+        
         const player = playersData[auctionState.currentPlayerIndex];
         if (auctionState.highestBidderId) {
             auctionState.status = 'sold';
@@ -202,17 +227,21 @@ app.prepare().then(async () => {
             player.status = 'sold';
             player.soldPrice = auctionState.currentBid;
             player.teamId = winner.id;
+            console.log(`[SOLD] ${player.name} to ${winner.name} for ${auctionState.currentBid} Cr`);
             io.emit("player-sold", { player, team: winner });
-            await updatePlayerInDB(player);
         } else {
             auctionState.status = 'unsold';
             player.status = 'unsold';
+            console.log(`[UNSOLD] ${player.name}`);
             io.emit("player-unsold", { player });
-            await updatePlayerInDB(player);
         }
+        
         auctionState.currentPlayerIndex++;
-        await saveGameState(auctionState, teams);
-        setTimeout(startNewRound, 3000);
+        // Persistence is non-blocking now
+        saveGameState(auctionState, teams);
+        updatePlayerInDB(player);
+        
+        setTimeout(startNewRound, 2000);
     }
 
     httpServer.listen(3000, () => console.log("> Ready on http://localhost:3000"));

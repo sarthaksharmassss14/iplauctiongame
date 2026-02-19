@@ -29,6 +29,9 @@ export interface Team {
     color: string;
     secondaryColor: string;
     isBot: boolean;
+    logo?: string;
+    short?: string;
+    darkText?: boolean;
 }
 
 export interface AuctionState {
