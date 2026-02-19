@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@types/lodash": "^4.17.23",
+    "dotenv": "^17.3.1",
     "firebase": "^12.9.0",
     "framer-motion": "^12.34.2",
     "groq-sdk": "^0.37.0",

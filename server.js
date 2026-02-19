@@ -1,3 +1,4 @@
+require('dotenv').config({ path: '.env.local' });
 const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");
@@ -154,8 +155,8 @@ app.prepare().then(async () => {
                 return;
             }
 
-            // Run bot logic asynchronously so it doesn't block the next tick
-            handleBotBids();
+            // Run bot logic asynchronously
+            handleBotBids().catch(err => console.error("Bot Handle Error:", err));
             auctionState.timer--;
         }, 1000);
     }
@@ -163,26 +164,29 @@ app.prepare().then(async () => {
     async function handleBotBids() {
         if (auctionState.status !== 'bidding') return;
 
-        // Pick 1-2 random bots to consider bidding this second to avoid sequential blocking
         const potentialBots = teams.filter(t => t.isBot && t.id !== auctionState.highestBidderId)
                                 .sort(() => Math.random() - 0.5)
                                 .slice(0, 3);
 
         for (const team of potentialBots) {
             const player = playersData[auctionState.currentPlayerIndex];
+            if (!player) continue;
+            
             const shouldBid = await getBotDecision(team, player, auctionState.currentBid, auctionState.highestBidderId);
             
-            // Check state again as it might have changed during await
             if (shouldBid && auctionState.status === 'bidding' && auctionState.highestBidderId !== team.id) {
                 auctionState.currentBid = parseFloat((auctionState.currentBid + 0.5).toFixed(2));
                 auctionState.highestBidderId = team.id;
                 auctionState.timer = 10;
+                
+                console.log(`[BOT BID] ${team.name} bid ${auctionState.currentBid} Cr for ${player.name}`);
+                
                 io.emit("bid-updated", { 
                     currentBid: auctionState.currentBid, 
                     highestBidderId: auctionState.highestBidderId,
                     timer: 10
                 });
-                break; // Only one bot bids per "handling" cycle
+                break; 
             }
         }
     }
