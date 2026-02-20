@@ -19,6 +19,38 @@ export default function Home() {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [teamSheetId, setTeamSheetId] = useState<string | null>(null);
 
+  // Lobby State
+  const [pageMode, setPageMode] = useState<'initial' | 'host' | 'join' | 'lobby' | 'auction'>('initial');
+  const [roomId, setRoomId] = useState("");
+  const [maxHumans, setMaxHumans] = useState(1);
+  const [isHost, setIsHost] = useState(false);
+  const [joinRoomId, setJoinRoomId] = useState("");
+  const [errorStatus, setErrorStatus] = useState("");
+  const [takenTeamIds, setTakenTeamIds] = useState<string[]>([]);
+  const [customAlert, setCustomAlert] = useState<{ show: boolean, message: string }>({ show: false, message: "" });
+
+  // Refs for socket listeners to avoid stale closures
+  const stateRef = useRef({ userName, selectedTeamId, roomId, joinRoomId, isHost, maxHumans, isJoined });
+  useEffect(() => {
+    stateRef.current = { userName, selectedTeamId, roomId, joinRoomId, isHost, maxHumans, isJoined };
+  }, [userName, selectedTeamId, roomId, joinRoomId, isHost, maxHumans, isJoined]);
+
+  // Connection timeout logic
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (isJoined && pageMode !== 'lobby' && pageMode !== 'auction') {
+      timeout = setTimeout(() => {
+        setCustomAlert({ show: true, message: "CONNECTION TIMED OUT. SERVER MIGHT BE DOWN. PLEASE TRY AGAIN!" });
+        setIsJoined(false);
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+          socketRef.current = null;
+        }
+      }, 12000);
+    }
+    return () => clearTimeout(timeout);
+  }, [isJoined, pageMode]);
+
   const socketRef = useRef<any>(null);
 
   const teamData = [
@@ -35,162 +67,425 @@ export default function Home() {
   ];
 
   useEffect(() => {
-    if (isJoined) {
-      const socket = io();
-      socketRef.current = socket;
-
-      if (selectedTeamId) setMyTeamId(selectedTeamId);
-
-      socket.on("connect", () => socket.emit("join-auction", { userId: userName, teamId: selectedTeamId }));
-      socket.on("assigned-team", (teamId: string) => setMyTeamId(teamId));
-      socket.on("init-state", (data: any) => {
-        setPlayers(data.players);
-        setTeams(data.teams);
-        setAuctionState(data.auctionState);
-      });
-      socket.on("new-round", (data: any) => {
-        setCurrentPlayer(data.player);
-        setAuctionState((prev: any) => ({ ...prev, currentBid: data.currentBid, timer: data.timer, status: 'bidding', highestBidderId: null }));
-        setBidHistory([]);
-      });
-      socket.on("bid-updated", (data: any) => {
-        setAuctionState((prev: any) => ({ ...prev, currentBid: data.currentBid, highestBidderId: data.highestBidderId, timer: data.timer }));
-        setTeams((currentTeams: Team[]) => {
-          const bidder = currentTeams.find(t => t.id === data.highestBidderId);
-          setBidHistory((prev: any) => [{ teamName: bidder?.name, amount: data.currentBid }, ...prev].slice(0, 5));
-          return currentTeams;
-        });
-      });
-      socket.on("timer-tick", (time: number) => setAuctionState((prev: any) => ({ ...prev, timer: time })));
-      socket.on("player-sold", (data: any) => {
-        setAuctionState((prev: any) => ({ ...prev, status: 'sold' }));
-        setTeams(prev => prev.map(t => t.id === data.team.id ? data.team : t));
-        setPlayers(prev => prev.map(p => p.id === data.player.id ? data.player : p));
-      });
-      socket.on("player-unsold", (data: any) => {
-        setAuctionState((prev: any) => ({ ...prev, status: 'unsold' }));
-        setPlayers(prev => prev.map(p => p.id === data.player.id ? { ...p, status: 'unsold' } : p));
-      });
-
-      return () => { socket.disconnect(); };
+    const params = new URLSearchParams(window.location.search);
+    const room = params.get('room');
+    if (room) {
+      setJoinRoomId(room.toUpperCase());
+      setPageMode('join');
     }
-  }, [isJoined, userName, selectedTeamId]);
+  }, []);
+
+  useEffect(() => {
+    if (pageMode === 'initial') {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
+
+    if (socketRef.current) return;
+
+    const socket = io();
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      console.log("Connected to server");
+      // consolidation: Only emit if isJoined is true AND we haven't joined a room yet
+      if (stateRef.current.isJoined) {
+        if (stateRef.current.isHost) {
+          console.log("Emitting create-room (on connect)");
+          socket.emit("create-room", { userId: stateRef.current.userName, maxHumans: stateRef.current.maxHumans });
+        } else {
+          console.log("Emitting join-room (on connect)");
+          socket.emit("join-room", {
+            roomId: stateRef.current.roomId || stateRef.current.joinRoomId,
+            userId: stateRef.current.userName,
+            teamId: stateRef.current.selectedTeamId
+          });
+        }
+      }
+
+      if (stateRef.current.joinRoomId && stateRef.current.joinRoomId.length === 6) {
+        socket.emit("check-room", { roomId: stateRef.current.joinRoomId });
+      }
+    });
+
+    socket.on("connect_error", (err) => {
+      console.error("Connection error:", err);
+      setErrorStatus("Connection failed. Is the server running?");
+      setIsJoined(false);
+      socketRef.current = null;
+    });
+
+    socket.on("room-created", (id: string) => {
+      console.log("Room created:", id);
+      setRoomId(id);
+      socket.emit("join-room", { roomId: id, userId: stateRef.current.userName, teamId: stateRef.current.selectedTeamId });
+    });
+
+    socket.on("room-info", (data: any) => {
+      console.log("Room info received:", data);
+      setTakenTeamIds(data.takenTeamIds || []);
+    });
+
+    socket.on("assigned-team", (teamId: string) => {
+      setMyTeamId(teamId);
+      setSelectedTeamId(teamId);
+    });
+
+    socket.on("init-state", (data: any) => {
+      setPlayers(data.players);
+      setTeams(data.teams);
+      setAuctionState(data.auctionState);
+      // Once we receive init-state, we are officially in. Stop the "isJoined" trigger.
+      setIsJoined(false);
+      if (data.auctionState.status !== 'lobby') {
+        setPageMode('auction');
+      } else {
+        setPageMode('lobby');
+      }
+    });
+
+    socket.on("player-joined", (data: any) => {
+      setTeams(data.teams);
+    });
+
+    socket.on("player-left", (data: any) => {
+      setTeams(prev => prev.map(t => t.id === data.teamId ? { ...t, socketId: null } : t));
+    });
+
+    socket.on("error-msg", (msg: string) => {
+      setErrorStatus(msg);
+      setIsJoined(false);
+      setPageMode('join');
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    });
+
+    socket.on("new-round", (data: any) => {
+      setPageMode('auction');
+      setCurrentPlayer(data.player);
+      setAuctionState((prev: any) => ({ ...prev, currentBid: data.currentBid, timer: data.timer, status: 'bidding', highestBidderId: null }));
+      setBidHistory([]);
+    });
+
+    socket.on("bid-updated", (data: any) => {
+      setAuctionState((prev: any) => ({ ...prev, currentBid: data.currentBid, highestBidderId: data.highestBidderId, timer: data.timer }));
+      setTeams((currentTeams: Team[]) => {
+        const bidder = currentTeams.find(t => t.id === data.highestBidderId);
+        setBidHistory((prev: any) => [{ teamName: bidder?.name, amount: data.currentBid }, ...prev].slice(0, 5));
+        return currentTeams;
+      });
+    });
+
+    socket.on("timer-tick", (time: number) => setAuctionState((prev: any) => ({ ...prev, timer: time })));
+    socket.on("player-sold", (data: any) => {
+      setAuctionState((prev: any) => ({ ...prev, status: 'sold' }));
+      setTeams(prev => prev.map(t => t.id === data.team.id ? data.team : t));
+      setPlayers(prev => prev.map(p => p.id === data.player.id ? data.player : p));
+    });
+    socket.on("player-unsold", (data: any) => {
+      setAuctionState((prev: any) => ({ ...prev, status: 'unsold' }));
+      setPlayers(prev => prev.map(p => p.id === data.player.id ? { ...p, status: 'unsold' } : p));
+    });
+
+    return () => {
+      // Only disconnect if we are actually going back to start
+      // Note: During Fast Refresh, this might run. In a real app we'd handle it better,
+      // but for this lab, let's keep it simple.
+    };
+  }, [pageMode === 'initial']); // Only re-run if we explicitly go back to 'initial'
+
+  // Effect to emit check-room when room code changes
+  useEffect(() => {
+    if (pageMode === 'join' && joinRoomId.length === 6 && socketRef.current) {
+      socketRef.current.emit("check-room", { roomId: joinRoomId });
+    } else if (joinRoomId.length < 6) {
+      setTakenTeamIds([]);
+    }
+  }, [joinRoomId, pageMode]);
+
+  // Consolidate room joining into the connect listener and manual handles
+  useEffect(() => {
+    if (isJoined && socketRef.current && socketRef.current.connected) {
+      if (stateRef.current.isHost) {
+        console.log("Emitting create-room (manual/effect)");
+        socketRef.current.emit("create-room", {
+          userId: stateRef.current.userName,
+          maxHumans: stateRef.current.maxHumans
+        });
+      } else if (stateRef.current.roomId || stateRef.current.joinRoomId) {
+        console.log("Emitting join-room (manual/effect)");
+        socketRef.current.emit("join-room", {
+          roomId: stateRef.current.roomId || stateRef.current.joinRoomId,
+          userId: stateRef.current.userName,
+          teamId: stateRef.current.selectedTeamId
+        });
+      }
+    }
+  }, [isJoined]);
+
+  const handleCreateRoom = () => {
+    if (!userName || !selectedTeamId) {
+      setCustomAlert({ show: true, message: "PLEASE ENTER YOUR NAME AND SELECT A FRANCHISE!" });
+      return;
+    }
+    setIsHost(true);
+    setIsJoined(true);
+  };
+
+  const handleJoinRoom = () => {
+    if (!userName || !selectedTeamId) {
+      setCustomAlert({ show: true, message: "PLEASE ENTER YOUR NAME AND SELECT A FRANCHISE!" });
+      return;
+    }
+    if (!joinRoomId) {
+      setCustomAlert({ show: true, message: "PLEASE ENTER A VALID ROOM CODE!" });
+      return;
+    }
+    setRoomId(joinRoomId);
+    setIsJoined(true);
+  };
 
   const handleBid = () => {
     if (!currentPlayer || auctionState?.status !== 'bidding' || !socketRef.current) return;
     if (auctionState.highestBidderId === myTeamId) return; // Prevent self-bidding
-    socketRef.current.emit("place-bid", { teamId: myTeamId, bidAmount: auctionState.currentBid + 0.5 });
+    socketRef.current.emit("place-bid", { roomId, teamId: myTeamId, bidAmount: auctionState.currentBid + 0.5 });
   };
 
   const startNextAuction = () => {
     if (socketRef.current) {
-      socketRef.current.emit("start-auction");
+      socketRef.current.emit("start-auction-manually", { roomId });
     }
   };
 
   const myTeam = teams.find(t => t.id === myTeamId);
 
-  if (!isJoined) {
+  if (pageMode !== 'auction') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'transparent', padding: '60px 20px', position: 'relative' }}>
-        {/* Background Decorative Blobs */}
-        <div className="blob" style={{ background: 'var(--mi-blue)', top: '10%', left: '5%' }}></div>
-        <div className="blob" style={{ background: 'var(--rcb-red)', bottom: '10%', right: '5%' }}></div>
-        <div className="blob" style={{ background: 'var(--kkr-purple)', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}></div>
+        <div className="blob" style={{ background: 'var(--mi-blue)', top: '10%', left: '5%', opacity: 0.15 }}></div>
+        <div className="blob" style={{ background: 'var(--rcb-red)', bottom: '10%', right: '5%', opacity: 0.15 }}></div>
 
         <header style={{ textAlign: 'center', marginBottom: '40px', position: 'relative', zIndex: 10 }}>
-          <img
+          <motion.img
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
             src="/ipl.png"
             alt="TATA IPL AUCTION"
-            style={{ height: '180px', width: 'auto', filter: 'drop-shadow(0 0 30px rgba(255,255,255,0.2))', marginBottom: '20px' }}
+            style={{ height: '140px', width: 'auto', marginBottom: '20px' }}
           />
         </header>
 
-        <div className="glass" style={{ width: '100%', maxWidth: '850px', padding: '40px', marginBottom: '60px', position: 'relative', zIndex: 10 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: '24px' }}>
-            <div style={{ width: '100%' }}>
-              <label style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '3px', marginBottom: '12px', display: 'block' }}>MANAGER NAME</label>
-              <input
-                type="text"
-                placeholder="Enter your name..."
-                style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '2px solid rgba(255,255,255,0.1)', padding: '20px', borderRadius: '20px', color: '#fff', fontSize: '1.4rem', fontWeight: 700, outline: 'none' }}
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-              />
-            </div>
-            <button className="btn-primary" disabled={!userName || !selectedTeamId} onClick={() => setIsJoined(true)} style={{ marginTop: 'auto', height: '72px' }}>ENTER ARENA</button>
-          </div>
-        </div>
-
-        <div style={{ width: '100%', maxWidth: '850px', position: 'relative', zIndex: 10 }}>
-          <h2 style={{ fontSize: '14px', fontWeight: 900, textTransform: 'uppercase', textAlign: 'center', color: '#94a3b8', marginBottom: '32px', letterSpacing: '4px' }}>CHOOSE YOUR FRANCHISE</h2>
-          <div className="franchise-grid">
-            {teamData.map((team) => (
+        <AnimatePresence>
+          {customAlert.show && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
               <motion.div
-                key={team.id}
-                whileHover={{ y: -8, scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className={`team-card ${selectedTeamId === team.id ? 'selected' : ''}`}
-                onClick={() => setSelectedTeamId(team.id)}
-                style={{
-                  background: `linear-gradient(135deg, ${team.color} 0%, rgba(0,0,0,0.4) 150%)`,
-                  borderColor: selectedTeamId === team.id ? team.secondary : 'rgba(255,255,255,0.15)',
-                  borderWidth: selectedTeamId === team.id ? '6px' : '2px',
-                  boxShadow: selectedTeamId === team.id ? `0 0 50px ${team.secondary}aa` : '0 10px 20px rgba(0,0,0,0.1)',
-                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-                } as any}
-                onMouseEnter={(e) => {
-                  if (selectedTeamId !== team.id) {
-                    e.currentTarget.style.borderColor = team.secondary;
-                    e.currentTarget.style.boxShadow = `0 15px 30px ${team.secondary}66`;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (selectedTeamId !== team.id) {
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
-                    e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)';
-                  }
-                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setCustomAlert({ ...customAlert, show: false })}
+                style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="glass"
+                style={{ position: 'relative', width: '100%', maxWidth: '400px', padding: '40px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}
               >
-                {/* Internal Shine Gradient Overlay */}
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(rgba(255,255,255,0.15), transparent 50%)', zIndex: 1, pointerEvents: 'none' }}></div>
-
-                {/* Selection Indicator Overlay */}
-                <AnimatePresence>
-                  {selectedTeamId === team.id && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10, background: 'white', borderRadius: '50%', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }}
-                    >
-                      <CheckCircle2 size={24} color={team.secondary} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <div className="team-logo-container" style={{ position: 'relative', zIndex: 2 }}>
-                  <img src={team.logo} alt={team.short} className="team-logo-img" style={{ scale: selectedTeamId === team.id ? '1.25' : '1', transition: '0.4s cubic-bezier(0.4, 0, 0.2, 1)', filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.2))' }} />
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                  <X size={30} color="#ef4444" strokeWidth={3} />
                 </div>
-                <p className="team-name-label" style={{
-                  color: team.darkText ? '#000' : '#fff',
-                  position: 'relative',
-                  zIndex: 6,
-                  opacity: selectedTeamId === team.id ? 1 : 0.8,
-                  fontSize: selectedTeamId === team.id ? '18px' : '15px',
-                  textShadow: team.darkText ? 'none' : '0 2px 4px rgba(0,0,0,0.2)'
-                }}>{team.short}</p>
-
-                {selectedTeamId === team.id && (
-                  <motion.div
-                    layoutId="selection-glow"
-                    style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.12)', zIndex: 1 }}
-                  />
-                )}
+                <h3 style={{ fontSize: '10px', fontWeight: 900, color: 'var(--accent)', letterSpacing: '4px', marginBottom: '12px' }}>ATTENTION REQUIRED</h3>
+                <p style={{ fontSize: '1.2rem', fontWeight: 950, color: 'white', lineHeight: 1.4, marginBottom: '32px' }}>{customAlert.message}</p>
+                <button
+                  onClick={() => setCustomAlert({ ...customAlert, show: false })}
+                  className="btn-primary"
+                  style={{ width: '100%', padding: '16px' }}
+                >
+                  GOT IT, BOSS!
+                </button>
               </motion.div>
-            ))}
+            </div>
+          )}
+        </AnimatePresence>
+
+        {(pageMode === 'initial' || pageMode === 'host' || pageMode === 'join') && (
+          <div style={{ width: '100%', maxWidth: '800px', position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+
+            {pageMode === 'initial' ? (
+              <div className="glass" style={{ display: 'flex', gap: '20px', width: '100%', maxWidth: '750px', padding: '25px', marginBottom: '40px' }}>
+                <button
+                  className="btn-primary"
+                  style={{ flex: 1, height: '180px', fontSize: '1.6rem', position: 'relative' }}
+                  onClick={() => setPageMode('host')}
+                >
+                  <div style={{ fontSize: '10px', letterSpacing: '4px', marginBottom: '10px', opacity: 0.6 }}>START NEW</div>
+                  HOST <br /> GAME
+                </button>
+                <button
+                  className="btn-secondary"
+                  style={{ flex: 1, height: '180px', fontSize: '1.6rem', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff' }}
+                  onClick={() => setPageMode('join')}
+                >
+                  <div style={{ fontSize: '10px', letterSpacing: '4px', marginBottom: '10px', opacity: 0.6 }}>ENTER CODE</div>
+                  JOIN <br /> GAME
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="glass" style={{ width: '100%', maxWidth: '650px', padding: '90px 35px 35px', marginBottom: '50px', position: 'relative' }}>
+                  <button
+                    onClick={() => {
+                      setPageMode('initial');
+                      setIsJoined(false);
+                      setJoinRoomId("");
+                      setIsHost(false);
+                      setErrorStatus("");
+                    }}
+                    style={{ position: 'absolute', top: '25px', left: '25px', background: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '10px', color: '#fff', fontSize: '11px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(255,255,255,0.1)', zIndex: 20 }}
+                  >
+                    <X size={14} /> BACK TO MENU
+                  </button>
+
+                  <label style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '4px', marginBottom: '16px', display: 'block' }}>MANAGER NAME</label>
+                  <div style={{ display: 'flex', gap: '15px' }}>
+                    <input
+                      type="text"
+                      placeholder="Enter your name..."
+                      className="input-premium"
+                      style={{ flex: 1 }}
+                      value={userName}
+                      onChange={(e) => setUserName(e.target.value)}
+                    />
+                    <button
+                      className="btn-primary"
+                      style={{ padding: '0 40px', minWidth: '180px', opacity: isJoined ? 0.7 : 1, pointerEvents: isJoined ? 'none' : 'auto' }}
+                      onClick={pageMode === 'join' || joinRoomId ? handleJoinRoom : handleCreateRoom}
+                    >
+                      {isJoined ? 'CONNECTING...' : 'ENTER ARENA'}
+                    </button>
+                  </div>
+
+                  {pageMode === 'host' && (
+                    <div style={{ marginTop: '25px', textAlign: 'center' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '4px', marginBottom: '20px', display: 'block' }}>HUMAN ENTRANTS (1-10)</label>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px', background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <button
+                          onClick={() => setMaxHumans(Math.max(1, maxHumans - 1))}
+                          className="btn-secondary"
+                          style={{ width: '60px', height: '60px', padding: 0, borderRadius: '16px', fontSize: '1.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          -
+                        </button>
+                        <div style={{ minWidth: '100px' }}>
+                          <span style={{ fontSize: '3.5rem', fontWeight: 950, color: 'white', display: 'block', lineHeight: 1 }}>{maxHumans}</span>
+                          <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', letterSpacing: '2px', textTransform: 'uppercase' }}>Slots</span>
+                        </div>
+                        <button
+                          onClick={() => setMaxHumans(Math.min(10, maxHumans + 1))}
+                          className="btn-primary"
+                          style={{ width: '60px', height: '60px', padding: 0, borderRadius: '16px', fontSize: '1.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          +
+                        </button>
+                      </div>
+                      <p style={{ fontSize: '10px', color: '#64748b', marginTop: '16px', fontWeight: 700, letterSpacing: '1px' }}>REMAINING SPOTS WILL BE FILLED BY ELITE BOTS</p>
+                    </div>
+                  )}
+
+                  {pageMode === 'join' && (
+                    <div style={{ marginTop: '20px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '4px', marginBottom: '12px', display: 'block' }}>ROOM CODE</label>
+                      <input type="text" placeholder="EX: ABC123" className="input-premium" style={{ textAlign: 'center', letterSpacing: '8px' }} value={joinRoomId} onChange={(e) => setJoinRoomId(e.target.value.toUpperCase())} />
+                      {errorStatus && <p style={{ color: '#ef4444', marginTop: '10px', fontWeight: 700, fontSize: '12px', textAlign: 'center' }}>{errorStatus}</p>}
+                    </div>
+                  )}
+                </div>
+
+                <h3 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: '#fff', marginBottom: '30px', letterSpacing: '5px', opacity: 0.8 }}>CHOOSE YOUR FRANCHISE</h3>
+                <div className="franchise-grid">
+                  {teamData.map((team) => {
+                    const isTaken = takenTeamIds.includes(team.id);
+                    return (
+                      <motion.div
+                        key={team.id}
+                        whileHover={!isTaken ? { y: -5 } : {}}
+                        onClick={() => !isTaken && setSelectedTeamId(team.id)}
+                        className={`team-card ${selectedTeamId === team.id ? 'selected' : ''}`}
+                        style={{
+                          background: `linear-gradient(135deg, ${team.color}, rgba(0,0,0,0.8))`,
+                          '--team-secondary': team.secondary,
+                          opacity: isTaken ? 0.3 : 1,
+                          cursor: isTaken ? 'not-allowed' : 'pointer',
+                          filter: isTaken ? 'grayscale(0.8)' : 'none'
+                        } as any}
+                      >
+                        <div className="team-logo-container">
+                          <img src={team.logo} className="team-logo-img" />
+                        </div>
+                        {isTaken && (
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)', borderRadius: '20px' }}>
+                            <span style={{ color: '#fff', fontSize: '10px', fontWeight: 950, letterSpacing: '2px', background: '#ef4444', padding: '4px 10px', borderRadius: '4px' }}>TAKEN</span>
+                          </div>
+                        )}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
           </div>
-        </div>
+        )}
+
+        {pageMode === 'lobby' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass"
+            style={{ width: '100%', maxWidth: '850px', padding: '50px', position: 'relative', zIndex: 10, textAlign: 'center' }}
+          >
+            <div style={{ marginBottom: '40px' }}>
+              <h1 style={{ fontSize: '4rem', fontWeight: 950, marginBottom: '8px' }}>ARENA</h1>
+              <p style={{ color: 'var(--accent)', fontWeight: 800, letterSpacing: '4px' }}>ROOM ID: {roomId}</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '50px' }}>
+              {teams.map(t => (
+                <div key={t.id} className="stat-card" style={{ padding: '20px 12px', borderTop: `4px solid ${teamData.find(td => td.id === t.id)?.color}`, opacity: t.isBot ? 0.4 : 1 }}>
+                  <img src={t.logo} style={{ width: '50px', height: '50px', objectFit: 'contain', marginBottom: '12px' }} />
+                  <p style={{ fontWeight: 900, fontSize: '12px', marginBottom: '4px' }}>{t.short}</p>
+                  <span style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 800 }}>{t.isBot ? 'BOT' : t.owner.toUpperCase()}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="glass" style={{ background: 'rgba(255,255,255,0.02)', padding: '24px', borderRadius: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ textAlign: 'left' }}>
+                <p style={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', letterSpacing: '2px', marginBottom: '4px' }}>WAITING FOR HUMANS</p>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 950 }}>{auctionState?.maxHumans - auctionState?.joinedPlayers} MORE SLOTS</h2>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  className="btn-secondary"
+                  style={{ padding: '12px 24px' }}
+                  onClick={() => navigator.clipboard.writeText(`${window.location.origin}?room=${roomId}`)}
+                >
+                  COPY LINK
+                </button>
+                {isHost && (
+                  <button className="btn-primary glimmer-btn" style={{ padding: '12px 32px' }} onClick={startNextAuction}>START NOW</button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
     );
   }
@@ -292,57 +587,61 @@ export default function Home() {
                 exit={{ opacity: 0, y: -20 }}
                 style={{ position: 'relative', zIndex: 1 }}
               >
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '40px', alignItems: 'center', textAlign: 'left' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: '50px', alignItems: 'center', textAlign: 'left' }}>
                   <div>
-                    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-                      <span style={{ background: 'var(--accent)', color: 'black', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 900, textTransform: 'uppercase' }}>{currentPlayer.role}</span>
-                      <span style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 900, textTransform: 'uppercase' }}>{currentPlayer.country}</span>
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+                      <span style={{ background: 'var(--accent)', color: 'black', padding: '6px 16px', borderRadius: '30px', fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '1px' }}>{currentPlayer.role}</span>
+                      <span style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '6px 16px', borderRadius: '30px', fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '1px' }}>{currentPlayer.country}</span>
                     </div>
-                    <h1 style={{ fontSize: '4.5rem', fontWeight: 950, lineHeight: 1, marginBottom: '24px' }}>{currentPlayer.name}</h1>
+                    <h1 style={{ fontSize: '5rem', fontWeight: 950, lineHeight: 0.9, marginBottom: '32px', letterSpacing: '-2px' }}>{currentPlayer.name}</h1>
 
-                    <div className="glass" style={{ padding: '24px', background: 'rgba(255,255,255,0.03)', marginBottom: '32px' }}>
-                      <h3 style={{ fontSize: '12px', fontWeight: 900, color: 'var(--accent)', marginBottom: '20px', letterSpacing: '2px' }}>CAREER T20 STATS</h3>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                    <div className="glass" style={{ padding: '30px', background: 'rgba(255,255,255,0.02)', marginBottom: '40px', borderRadius: '30px' }}>
+                      <h3 style={{ fontSize: '11px', fontWeight: 950, color: 'var(--accent)', marginBottom: '24px', letterSpacing: '4px' }}>ARENA STATISTICS</h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
                         <MiniStat label="MATCHES" value={currentPlayer.stats?.matches} icon={<Users size={14} />} />
                         {currentPlayer.stats?.runs && <MiniStat label="RUNS" value={currentPlayer.stats?.runs} icon={<TrendingUp size={14} />} />}
-                        {currentPlayer.stats?.wickets && <MiniStat label="WICKETS" value={currentPlayer.stats?.wickets} icon={<Zap size={14} />} />}
+                        {currentPlayer.stats?.wickets && <MiniStat label="WKTS" value={currentPlayer.stats?.wickets} icon={<Zap size={14} />} />}
                         <MiniStat label="STR RATE" value={currentPlayer.stats?.sr} icon={<Star size={14} />} />
-                        {currentPlayer.stats?.avg && <MiniStat label="AVG" value={currentPlayer.stats?.avg} icon={<Star size={14} />} />}
-                        {currentPlayer.stats?.eco && <MiniStat label="ECON" value={currentPlayer.stats?.eco} icon={<Star size={14} />} />}
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-                      <p style={{ fontSize: '6rem', fontWeight: 950, color: 'white' }}>{auctionState.currentBid.toFixed(2)}</p>
-                      <span style={{ fontSize: '2rem', color: 'var(--accent)', fontWeight: 900 }}>CR</span>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <span style={{ fontSize: '2rem', color: 'var(--accent)', fontWeight: 950, marginTop: '15px' }}>₹</span>
+                      <p className="glow-text" style={{ fontSize: '7rem', fontWeight: 950, lineHeight: 1 }}>{auctionState.currentBid.toFixed(2)}</p>
+                      <span style={{ fontSize: '1.5rem', color: '#94a3b8', fontWeight: 900, marginTop: '45px' }}>CR</span>
                     </div>
-                    <p style={{ fontSize: '12px', fontWeight: 900, color: '#94a3b8', letterSpacing: '2px', marginBottom: '32px' }}>CURRENT HIGHEST BID</p>
+                    <p style={{ fontSize: '12px', fontWeight: 900, color: '#94a3b8', letterSpacing: '4px', marginBottom: '40px', marginTop: '10px' }}>CURRENT MARKET VALUATION</p>
 
                     <button
                       onClick={handleBid}
-                      disabled={auctionState.highestBidderId === myTeam?.id}
+                      disabled={auctionState.highestBidderId === myTeamId}
+                      className={`btn-primary ${auctionState.highestBidderId !== myTeamId ? 'glimmer-btn' : ''}`}
                       style={{
                         width: '100%',
-                        fontSize: '2.4rem',
+                        fontSize: '1.8rem',
                         height: '90px',
-                        background: auctionState.highestBidderId === myTeam?.id ? '#334155' : 'var(--accent)',
-                        opacity: auctionState.highestBidderId === myTeam?.id ? 0.6 : 1,
-                        cursor: auctionState.highestBidderId === myTeam?.id ? 'not-allowed' : 'pointer',
-                        border: 'none',
-                        color: 'white',
-                        fontWeight: 900
+                        borderRadius: '28px',
+                        background: auctionState.highestBidderId === myTeamId ? 'rgba(255,255,255,0.05)' : 'var(--accent)',
+                        opacity: 1,
+                        cursor: auctionState.highestBidderId === myTeamId ? 'not-allowed' : 'pointer',
+                        color: auctionState.highestBidderId === myTeamId ? '#fff' : '#000',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        whiteSpace: 'nowrap',
+                        fontWeight: 950,
+                        letterSpacing: '2px'
                       }}
                     >
-                      {auctionState.highestBidderId === myTeam?.id ? 'HIGHEST BIDDER' : 'PLACE BID'}
+                      {auctionState.highestBidderId === myTeamId ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <CheckCircle2 size={32} /> HOLDING
+                        </div>
+                      ) : 'AUTHORIZE BID'}
                     </button>
                   </div>
 
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-
-                    {/* Background Glow */}
-                    <div style={{ position: 'absolute', inset: -20, background: `radial-gradient(circle, ${teamData.find(t => t.id === auctionState.highestBidderId)?.color || 'rgba(255,255,255,0.1)'} 0%, transparent 60%)`, zIndex: -1, opacity: 0.6 }}></div>
-
-                    {/* Active Bidder Card */}
+                  <div style={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center' }}>
                     <AnimatePresence mode="popLayout">
                       {auctionState.highestBidderId ? (
                         (() => {
@@ -350,47 +649,46 @@ export default function Home() {
                           return (
                             <motion.div
                               key={bidder?.id}
-                              initial={{ scale: 0.8, opacity: 0, y: 20 }}
-                              animate={{ scale: 1, opacity: 1, y: 0 }}
-                              exit={{ scale: 0.8, opacity: 0, y: -20 }}
-                              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                              initial={{ scale: 0.9, opacity: 0, rotateY: 20 }}
+                              animate={{ scale: 1, opacity: 1, rotateY: 0 }}
+                              exit={{ scale: 1.1, opacity: 0, rotateY: -20 }}
+                              className="card-glimmer"
                               style={{
-                                background: `linear-gradient(135deg, ${bidder?.color} 0%, rgba(0,0,0,0.9) 100%)`,
-                                padding: '40px',
-                                borderRadius: '30px',
-                                border: `1px solid rgba(255,255,255,0.2)`,
-                                boxShadow: `0 20px 50px ${bidder?.color}66`,
+                                background: `linear-gradient(135deg, ${bidder?.color} 0%, rgba(0,0,0,0.95) 100%)`,
+                                padding: '50px',
+                                borderRadius: '40px',
+                                border: `2px solid rgba(255,255,255,0.2)`,
+                                boxShadow: `0 30px 60px ${bidder?.color}33`,
                                 textAlign: 'center',
                                 width: '100%',
-                                maxWidth: '450px'
+                                position: 'relative',
+                                overflow: 'hidden'
                               }}
                             >
-                              <p style={{ fontSize: '14px', fontWeight: 900, color: 'rgba(255,255,255,0.8)', letterSpacing: '4px', marginBottom: '20px' }}>CURRENT HIGHEST BIDDER</p>
-
+                              <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)' }}></div>
+                              <p style={{ fontSize: '12px', fontWeight: 950, color: 'rgba(255,255,255,0.6)', letterSpacing: '5px', marginBottom: '30px' }}>DOMINANT BIDDER</p>
                               {bidder?.logo && (
                                 <motion.img
-                                  initial={{ scale: 0.8 }}
-                                  animate={{ scale: 1.1 }}
-                                  transition={{ repeat: Infinity, repeatType: "reverse", duration: 2 }}
+                                  animate={{ y: [0, -10, 0] }}
+                                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                                   src={bidder.logo}
-                                  style={{ width: '180px', height: '180px', objectFit: 'contain', margin: '0 auto 24px', filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.5))' }}
+                                  style={{ width: '200px', height: '200px', objectFit: 'contain', margin: '0 auto 30px', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5))' }}
                                 />
                               )}
-
-                              <h2 style={{ fontSize: '3.5rem', fontWeight: 950, color: 'white', lineHeight: 1 }}>{bidder?.name}</h2>
-                              <p style={{ fontSize: '2rem', marginTop: '10px', color: 'rgba(255,255,255,0.6)', fontWeight: 800 }}>{bidder?.short}</p>
+                              <h2 style={{ fontSize: '3.5rem', fontWeight: 950, color: 'white', lineHeight: 1 }}>{bidder?.name || 'UNKNOWN'}</h2>
+                              <p style={{ fontSize: '1.8rem', marginTop: '12px', color: 'rgba(255,255,255,0.5)', fontWeight: 800 }}>{bidder?.short?.toUpperCase() || ''}</p>
                             </motion.div>
                           )
                         })()
                       ) : (
-                        <div style={{ textAlign: 'center', opacity: 0.5 }}>
+                        <div style={{ textAlign: 'center', width: '100%', opacity: 0.3 }}>
                           <motion.div
                             animate={{ rotate: 360 }}
-                            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
                           >
-                            <Gavel size={120} color="rgba(255,255,255,0.2)" />
+                            <Gavel size={160} color="white" />
                           </motion.div>
-                          <p style={{ marginTop: '20px', fontSize: '1.5rem', fontWeight: 900, color: '#94a3b8' }}>WAITING FOR BIDS...</p>
+                          <p style={{ marginTop: '30px', fontSize: '1.4rem', fontWeight: 900, color: '#fff', letterSpacing: '4px' }}>WAITING FOR OPENING BID</p>
                         </div>
                       )}
                     </AnimatePresence>
@@ -399,52 +697,59 @@ export default function Home() {
               </motion.div>
             ) : (
               <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '40px' }}
+                style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: '700px', margin: '0 auto' }}
               >
-                <div className="glass" style={{ padding: '60px', borderRadius: '40px', border: '2px solid var(--accent)', background: 'rgba(10, 10, 10, 0.4)', textAlign: 'center' }}>
+                <div className="glass" style={{ padding: '80px', borderRadius: '50px', border: '2px solid var(--accent)', background: 'rgba(5, 5, 5, 0.4)', textAlign: 'center' }}>
                   {auctionState?.status === 'sold' ? (
                     (() => {
                       const winner = teams.find(t => t.id === auctionState.highestBidderId);
                       return (
-                        <>
-                          <Trophy size={80} color={winner?.color || "var(--accent)"} style={{ margin: '0 auto 24px', filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.4))' }} />
-                          <h2 style={{ fontSize: '4rem', fontWeight: 950, color: 'white', marginBottom: '8px' }}>SOLD!</h2>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', margin: '24px 0' }}>
-                            {winner?.logo && <img src={winner.logo} style={{ width: '80px', height: '80px', objectFit: 'contain' }} />}
+                        <motion.div initial={{ y: 20 }} animate={{ y: 0 }}>
+                          <Trophy size={100} color={winner?.color || "var(--accent)"} style={{ margin: '0 auto 32px', filter: 'drop-shadow(0 0 30px rgba(255,255,255,0.3))' }} />
+                          <h2 style={{ fontSize: '5rem', fontWeight: 950, color: 'white', marginBottom: '12px', letterSpacing: '-2px' }}>ACQUIRED!</h2>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px', margin: '32px 0' }}>
+                            {winner?.logo && <img src={winner.logo} style={{ width: '100px', height: '100px', objectFit: 'contain' }} />}
                             <div style={{ textAlign: 'left' }}>
-                              <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 900, textTransform: 'uppercase' }}>SOLD TO</p>
-                              <p style={{ fontSize: '2rem', fontWeight: 950, color: winner?.color || 'white' }}>{winner?.short}</p>
+                              <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '2px' }}>JOINING SQUAD</p>
+                              <p style={{ fontSize: '2.5rem', fontWeight: 950, color: winner?.color || 'white' }}>{winner?.name.toUpperCase()}</p>
                             </div>
                           </div>
-                          <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px 24px', borderRadius: '12px', display: 'inline-block' }}>
-                            <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'white' }}>{auctionState.currentBid.toFixed(2)} CR</span>
+                          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '20px 40px', borderRadius: '24px', display: 'inline-flex', alignItems: 'baseline', gap: '8px' }}>
+                            <span style={{ fontSize: '3rem', fontWeight: 950, color: 'white' }}>{auctionState.currentBid.toFixed(2)}</span>
+                            <span style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--accent)' }}>CR</span>
                           </div>
-                        </>
+                        </motion.div>
                       );
                     })()
                   ) : auctionState?.status === 'unsold' ? (
-                    <>
-                      <Gavel size={100} color="#64748b" style={{ margin: '0 auto 24px' }} />
-                      <h2 style={{ fontSize: '4rem', fontWeight: 950, color: '#64748b' }}>UNSOLD</h2>
-                      <p style={{ fontSize: '1.2rem', color: '#94a3b8', fontWeight: 800, marginTop: '12px' }}>MOVING TO NEXT PLAYER...</p>
-                    </>
+                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
+                      <Gavel size={120} color="#475569" style={{ margin: '0 auto 32px' }} />
+                      <h2 style={{ fontSize: '5rem', fontWeight: 950, color: '#475569', letterSpacing: '-2px' }}>UNSOLD</h2>
+                      <p style={{ fontSize: '1.4rem', color: '#64748b', fontWeight: 800, marginTop: '16px', letterSpacing: '4px' }}>REMAINING IN POOL</p>
+                    </motion.div>
                   ) : (
-                    <>
-                      <div style={{ position: 'relative', display: 'inline-block' }}>
-                        <Timer size={100} color="var(--accent)" style={{ margin: '0 auto 24px', animation: 'pulse 2s infinite' }} />
-                        <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2rem', fontWeight: 900, color: 'white' }}>
-                          {auctionState.timer > 0 ? auctionState.timer : ''}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ position: 'relative', marginBottom: '40px' }}>
+                        <motion.div
+                          animate={{ scale: [1, 1.1, 1] }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                          style={{ position: 'absolute', inset: -20, background: 'var(--accent)', opacity: 0.1, borderRadius: '50%', filter: 'blur(30px)' }}
+                        />
+                        <Timer size={120} color="var(--accent)" />
+                        <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2.5rem', fontWeight: 950, color: 'white' }}>
+                          {auctionState?.timer || ''}
                         </span>
                       </div>
-                      <h2 style={{ fontSize: '3rem', fontWeight: 950, color: 'white' }}>AUCTION STARTING...</h2>
-                      <p style={{ fontSize: '1.2rem', color: '#94a3b8', fontWeight: 800, marginTop: '12px' }}>FRANCHISES ARE JOINING THE ARENA</p>
-                      {/* Check if user is human owner of team 0 (or generally allow any human to start) */}
-                      <button onClick={startNextAuction} style={{ marginTop: '32px', padding: '16px 32px', background: 'var(--accent)', border: 'none', borderRadius: '12px', fontWeight: 900, cursor: 'pointer', fontSize: '1.2rem' }}>
-                        START AUCTION
-                      </button>
-                    </>
+                      <h2 style={{ fontSize: '4rem', fontWeight: 950, color: 'white', marginBottom: '16px', letterSpacing: '-1px' }}>PREPARING ARENA</h2>
+                      <p style={{ fontSize: '1.3rem', color: '#94a3b8', fontWeight: 800, marginBottom: '40px', letterSpacing: '4px' }}>FRANCHISES ARE ASSEMBLING</p>
+                      {isHost && (
+                        <button className="btn-primary glimmer-btn" style={{ padding: '24px 60px', fontSize: '1.4rem' }} onClick={startNextAuction}>
+                          COMMENCE AUCTION
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </motion.div>

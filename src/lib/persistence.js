@@ -21,10 +21,10 @@ const withTimeout = (promise, ms = 3000) => {
     ]);
 };
 
-async function saveGameState(auctionState, teams) {
+async function saveGameState(auctionState, teams, roomId = "current_state") {
     if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) return;
     try {
-        await withTimeout(setDoc(doc(db, "auction", "current_state"), {
+        await withTimeout(setDoc(doc(db, "auction", roomId), {
             auctionState,
             teams,
             updatedAt: new Date()
@@ -34,10 +34,10 @@ async function saveGameState(auctionState, teams) {
     }
 }
 
-async function loadGameState() {
+async function loadGameState(roomId = "current_state") {
     if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) return null;
     try {
-        const docSnap = await withTimeout(getDoc(doc(db, "auction", "current_state")));
+        const docSnap = await withTimeout(getDoc(doc(db, "auction", roomId)));
         if (docSnap.exists()) {
             return docSnap.data();
         }
@@ -62,10 +62,11 @@ async function getPlayersFromDB() {
     return null;
 }
 
-async function updatePlayerInDB(player) {
+async function updatePlayerInDB(player, roomId = "") {
     if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) return;
     try {
-        await withTimeout(setDoc(doc(db, "players", player.id.toString()), player, { merge: true }));
+        const path = roomId ? `rooms/${roomId}/players` : "players";
+        await withTimeout(setDoc(doc(db, path, player.id.toString()), player, { merge: true }));
     } catch (e) {
         console.warn(`Persistence: Update player ${player.id} failed`);
     }

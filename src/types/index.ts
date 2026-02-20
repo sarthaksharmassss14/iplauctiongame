@@ -39,6 +39,9 @@ export interface AuctionState {
     currentBid: number;
     highestBidderId: string | null;
     timer: number;
-    status: 'idle' | 'bidding' | 'sold' | 'unsold' | 'finished';
+    status: 'idle' | 'bidding' | 'sold' | 'unsold' | 'finished' | 'lobby';
     joinedPlayers: number;
+    roomId?: string;
+    maxHumans?: number;
+    hostId?: string;
 }

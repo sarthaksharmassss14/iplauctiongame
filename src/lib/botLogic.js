@@ -30,9 +30,9 @@ async function getBotDecision(team, currentPlayer, currentBid, highestBidderId) 
     
     const bidValueLimit = baseInCr * maxMultiplier;
     
-    // AI Decision using Groq if available
+    // AI Decision using Groq if available (only call 30% of the time to respect rate limits)
     const groq = getGroq();
-    if (groq) {
+    if (groq && Math.random() < 0.3) {
         try {
             const prompt = `
             Context: IPL Mock Auction. Team: ${team.name}. budget: ${team.budget} Cr.
