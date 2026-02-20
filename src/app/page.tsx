@@ -28,6 +28,9 @@ export default function Home() {
   const [errorStatus, setErrorStatus] = useState("");
   const [takenTeamIds, setTakenTeamIds] = useState<string[]>([]);
   const [customAlert, setCustomAlert] = useState<{ show: boolean, message: string }>({ show: false, message: "" });
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showUpcomingModal, setShowUpcomingModal] = useState(false);
+  const [showPastModal, setShowPastModal] = useState(false);
 
   // Refs for socket listeners to avoid stale closures
   const stateRef = useRef({ userName, selectedTeamId, roomId, joinRoomId, isHost, maxHumans, isJoined });
@@ -253,7 +256,12 @@ export default function Home() {
   const handleBid = () => {
     if (!currentPlayer || auctionState?.status !== 'bidding' || !socketRef.current) return;
     if (auctionState.highestBidderId === myTeamId) return; // Prevent self-bidding
-    socketRef.current.emit("place-bid", { roomId, teamId: myTeamId, bidAmount: auctionState.currentBid + 0.5 });
+
+    // First bid acts as exactly the base price
+    // Next bids are incremented by 0.25
+    const incrementedBid = auctionState.highestBidderId === null ? auctionState.currentBid : auctionState.currentBid + 0.25;
+
+    socketRef.current.emit("place-bid", { roomId, teamId: myTeamId, bidAmount: parseFloat(incrementedBid.toFixed(2)) });
   };
 
   const startNextAuction = () => {
@@ -314,8 +322,144 @@ export default function Home() {
           )}
         </AnimatePresence>
 
+        <AnimatePresence>
+          {showLeaveConfirm && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowLeaveConfirm(false)}
+                style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="glass"
+                style={{ position: 'relative', width: '100%', maxWidth: '400px', padding: '40px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}
+              >
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                  <X size={30} color="#ef4444" strokeWidth={3} />
+                </div>
+                <h3 style={{ fontSize: '12px', fontWeight: 900, color: '#ef4444', letterSpacing: '4px', marginBottom: '12px' }}>LEAVE AUCTION?</h3>
+                <p style={{ fontSize: '1.2rem', fontWeight: 800, color: 'rgba(255,255,255,0.7)', lineHeight: 1.4, marginBottom: '32px' }}>Are you sure you want to exit? Your progress might be disrupted.</p>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => setShowLeaveConfirm(false)}
+                    className="btn-secondary glass"
+                    style={{ flex: 1, padding: '16px', background: 'rgba(255,255,255,0.05)', color: '#fff' }}
+                  >
+                    RESUME
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowLeaveConfirm(false);
+                      setPageMode('initial');
+                      setIsJoined(false);
+                      setJoinRoomId("");
+                      setIsHost(false);
+                      setErrorStatus("");
+                    }}
+                    className="btn-primary"
+                    style={{ flex: 1, padding: '16px', background: '#ef4444', color: '#fff' }}
+                  >
+                    EXIT
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showUpcomingModal && (
+            <motion.div key="upcoming-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowUpcomingModal(false)}
+                style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="glass"
+                style={{ position: 'relative', width: '100%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', overflow: 'hidden' }}
+              >
+                <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 900, color: 'var(--accent)', letterSpacing: '4px' }}>UPCOMING PLAYERS</h3>
+                  <button onClick={() => setShowUpcomingModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+                </div>
+                <div style={{ overflowY: 'auto', padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {players.filter(p => !p.status || p.status === 'upcoming' || p.status === 'current').filter(p => p.id !== currentPlayer?.id).map((p) => (
+                    <div key={p.id} className="glass" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '12px', padding: '16px', alignItems: 'center', background: 'rgba(255,255,255,0.03)' }}>
+                      <div style={{ fontWeight: 900, fontSize: '1.2rem' }}>{p.name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 800 }}>{p.role.toUpperCase()}</div>
+                      <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 800 }}>{p.country.toUpperCase()}</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 950, textAlign: 'right' }}>{p.basePrice} Cr</div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {showPastModal && (
+            <motion.div key="past-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowPastModal(false)}
+                style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+              />
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="glass"
+                style={{ position: 'relative', width: '100%', maxWidth: '700px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', overflow: 'hidden' }}
+              >
+                <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: 900, color: 'var(--accent)', letterSpacing: '4px' }}>SOLD & UNSOLD</h3>
+                  <button onClick={() => setShowPastModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+                </div>
+                <div style={{ overflowY: 'auto', padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {players.filter(p => p.status === 'sold' || p.status === 'unsold').slice().reverse().map((p) => {
+                    const soldTeam = p.teamId ? teams.find(t => t.id === p.teamId) : null;
+                    return (
+                      <div key={p.id} className="glass" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr', gap: '12px', padding: '16px', alignItems: 'center', background: 'rgba(255,255,255,0.03)', borderLeft: p.status === 'sold' && soldTeam ? `4px solid ${soldTeam.color}` : '4px solid #ef4444' }}>
+                        <div style={{ fontWeight: 900, fontSize: '1.2rem' }}>{p.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 800 }}>{p.role.toUpperCase()}</div>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: p.status === 'sold' ? '#4ade80' : '#ef4444' }}>{p.status.toUpperCase()}</div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 950, textAlign: 'right' }}>
+                          {p.status === 'sold' && soldTeam ? (
+                            <span style={{ color: soldTeam.color }}>{soldTeam.name} ({p.soldPrice?.toFixed(2)} Cr)</span>
+                          ) : '0 Cr'}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {players.filter(p => p.status === 'sold' || p.status === 'unsold').length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.4)', fontWeight: 800 }}>No players auctioned yet!</div>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {(pageMode === 'initial' || pageMode === 'host' || pageMode === 'join') && (
           <div style={{ width: '100%', maxWidth: '800px', position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+
+            {/* Glowing Orbs for Glass Refraction */}
+            <div style={{ position: 'absolute', top: '50%', left: '-20%', transform: 'translateY(-50%)', width: '350px', height: '350px', background: 'var(--csk-yellow)', filter: 'blur(100px)', opacity: 0.15, pointerEvents: 'none', zIndex: -1 }}></div>
+            <div style={{ position: 'absolute', top: '50%', right: '-20%', transform: 'translateY(-50%)', width: '350px', height: '350px', background: 'var(--dc-blue)', filter: 'blur(100px)', opacity: 0.3, pointerEvents: 'none', zIndex: -1 }}></div>
 
             {pageMode === 'initial' ? (
               <div className="glass" style={{ display: 'flex', gap: '20px', width: '100%', maxWidth: '750px', padding: '25px', marginBottom: '40px' }}>
@@ -328,17 +472,19 @@ export default function Home() {
                   HOST <br /> GAME
                 </button>
                 <button
-                  className="btn-secondary"
-                  style={{ flex: 1, height: '180px', fontSize: '1.6rem', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff' }}
+                  className="btn-secondary glass"
+                  style={{ flex: 1, height: '180px', fontSize: '1.6rem', background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.15)', boxShadow: 'inset 0 0 20px rgba(255,255,255,0.05)', color: '#fff', transition: 'all 0.3s' }}
                   onClick={() => setPageMode('join')}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
                 >
-                  <div style={{ fontSize: '10px', letterSpacing: '4px', marginBottom: '10px', opacity: 0.6 }}>ENTER CODE</div>
+                  <div style={{ fontSize: '10px', letterSpacing: '4px', marginBottom: '10px', opacity: 0.8, fontWeight: 900 }}>ENTER CODE</div>
                   JOIN <br /> GAME
                 </button>
               </div>
             ) : (
               <>
-                <div className="glass" style={{ width: '100%', maxWidth: '650px', padding: '90px 35px 35px', marginBottom: '50px', position: 'relative' }}>
+                <div className="glass" style={{ width: '100%', maxWidth: '650px', padding: '70px 35px 25px', marginBottom: '30px', position: 'relative' }}>
                   <button
                     onClick={() => {
                       setPageMode('initial');
@@ -347,12 +493,12 @@ export default function Home() {
                       setIsHost(false);
                       setErrorStatus("");
                     }}
-                    style={{ position: 'absolute', top: '25px', left: '25px', background: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '10px', color: '#fff', fontSize: '11px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(255,255,255,0.1)', zIndex: 20 }}
+                    style={{ position: 'absolute', top: '20px', left: '20px', background: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '10px', color: '#fff', fontSize: '11px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(255,255,255,0.1)', zIndex: 20 }}
                   >
                     <X size={14} /> BACK TO MENU
                   </button>
 
-                  <label style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '4px', marginBottom: '16px', display: 'block' }}>MANAGER NAME</label>
+                  <label style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '4px', marginBottom: '12px', display: 'block' }}>MANAGER NAME</label>
                   <div style={{ display: 'flex', gap: '15px' }}>
                     <input
                       type="text"
@@ -362,19 +508,12 @@ export default function Home() {
                       value={userName}
                       onChange={(e) => setUserName(e.target.value)}
                     />
-                    <button
-                      className="btn-primary"
-                      style={{ padding: '0 40px', minWidth: '180px', opacity: isJoined ? 0.7 : 1, pointerEvents: isJoined ? 'none' : 'auto' }}
-                      onClick={pageMode === 'join' || joinRoomId ? handleJoinRoom : handleCreateRoom}
-                    >
-                      {isJoined ? 'CONNECTING...' : 'ENTER ARENA'}
-                    </button>
                   </div>
 
                   {pageMode === 'host' && (
-                    <div style={{ marginTop: '25px', textAlign: 'center' }}>
-                      <label style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '4px', marginBottom: '20px', display: 'block' }}>HUMAN ENTRANTS (1-10)</label>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px', background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div style={{ marginTop: '15px', textAlign: 'center' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--accent)', letterSpacing: '4px', marginBottom: '12px', display: 'block' }}>HUMAN ENTRANTS (1-10)</label>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px', background: 'rgba(255,255,255,0.03)', padding: '15px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)' }}>
                         <button
                           onClick={() => setMaxHumans(Math.max(1, maxHumans - 1))}
                           className="btn-secondary"
@@ -407,7 +546,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <h3 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: '#fff', marginBottom: '30px', letterSpacing: '5px', opacity: 0.8 }}>CHOOSE YOUR FRANCHISE</h3>
+                <h3 style={{ fontSize: '12px', fontWeight: 900, textTransform: 'uppercase', color: '#fff', marginBottom: '20px', letterSpacing: '5px', opacity: 0.8 }}>CHOOSE YOUR FRANCHISE</h3>
                 <div className="franchise-grid">
                   {teamData.map((team) => {
                     const isTaken = takenTeamIds.includes(team.id);
@@ -436,6 +575,16 @@ export default function Home() {
                       </motion.div>
                     );
                   })}
+                </div>
+
+                <div style={{ marginTop: '30px', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                  <button
+                    className="btn-primary"
+                    style={{ padding: '20px 40px', width: '100%', maxWidth: '400px', fontSize: '1.4rem', opacity: (!selectedTeamId || isJoined) ? 0.5 : 1, pointerEvents: (!selectedTeamId || isJoined) ? 'none' : 'auto' }}
+                    onClick={pageMode === 'join' || joinRoomId ? handleJoinRoom : handleCreateRoom}
+                  >
+                    {!selectedTeamId ? 'SELECT A FRANCHISE FIRST' : isJoined ? 'CONNECTING...' : 'ENTER ARENA'}
+                  </button>
                 </div>
               </>
             )}
@@ -566,17 +715,23 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
           <Stat value={`${myTeam?.budget.toFixed(2)} Cr`} label="PURSE" color={myTeam?.color} />
           <Stat value={`${myTeam?.squad.length}/21`} label="SQUAD" color={myTeam?.color} />
           <Stat value={`${myTeam?.foreignCount}/8`} label="OVERSEAS" color={myTeam?.color} />
-          <Stat value={`${auctionState?.timer}s`} label="TIMER" color="var(--accent)" />
         </div>
       </header>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '40px', position: 'relative', zIndex: 10 }}>
-        <div className="glass" style={{ padding: '60px', textAlign: 'center', position: 'relative', border: `1px solid rgba(255,255,255,0.08)`, minHeight: '650px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ position: 'absolute', inset: 0, backgroundColor: myTeam?.color, opacity: 0.05, zIndex: 0 }}></div>
+        <div className="glass" style={{ minWidth: 0, padding: '70px 60px 40px', textAlign: 'center', position: 'relative', border: `1px solid rgba(255,255,255,0.08)`, minHeight: '650px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ position: 'absolute', inset: 0, backgroundColor: myTeam?.color, opacity: 0.05, zIndex: 0, borderRadius: '24px' }}></div>
+
+          <button
+            onClick={() => setShowLeaveConfirm(true)}
+            style={{ position: 'absolute', top: '25px', left: '25px', background: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '10px', color: '#fff', fontSize: '11px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(255,255,255,0.1)', zIndex: 20 }}
+          >
+            <X size={14} /> BACK TO MENU
+          </button>
 
           <AnimatePresence mode="wait">
             {auctionState?.status === 'bidding' && currentPlayer ? (
@@ -588,12 +743,19 @@ export default function Home() {
                 style={{ position: 'relative', zIndex: 1 }}
               >
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: '50px', alignItems: 'center', textAlign: 'left' }}>
-                  <div>
-                    <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center' }}>
                       <span style={{ background: 'var(--accent)', color: 'black', padding: '6px 16px', borderRadius: '30px', fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '1px' }}>{currentPlayer.role}</span>
                       <span style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '6px 16px', borderRadius: '30px', fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '1px' }}>{currentPlayer.country}</span>
+                      <motion.div
+                        animate={auctionState?.timer <= 3 ? { scale: [1, 1.1, 1], boxShadow: ["0px 0px 0px rgba(239,68,68,0)", "0px 0px 30px rgba(239,68,68,0.8)", "0px 0px 0px rgba(239,68,68,0)"] } : {}}
+                        transition={{ repeat: Infinity, duration: 0.6 }}
+                        style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', background: auctionState?.timer <= 3 ? '#ef4444' : 'rgba(255,255,255,0.05)', color: auctionState?.timer <= 3 ? '#fff' : 'var(--accent)', border: `1px solid ${auctionState?.timer <= 3 ? '#ef4444' : 'rgba(255,255,255,0.1)'}`, padding: '6px 18px', borderRadius: '30px', fontSize: '14px', fontWeight: 950, letterSpacing: '2px', transition: auctionState?.timer <= 3 ? 'none' : 'all 0.3s' }}>
+                        <Timer size={16} />
+                        {auctionState?.timer <= 3 ? `FINAL CALL : ${auctionState?.timer}S` : `${auctionState?.timer}S`}
+                      </motion.div>
                     </div>
-                    <h1 style={{ fontSize: '5rem', fontWeight: 950, lineHeight: 0.9, marginBottom: '32px', letterSpacing: '-2px' }}>{currentPlayer.name}</h1>
+                    <h1 style={{ fontSize: 'clamp(2rem, 3.5vw, 4rem)', fontWeight: 950, lineHeight: 1.1, marginBottom: '32px', letterSpacing: '-2px' }}>{currentPlayer.name}</h1>
 
                     <div className="glass" style={{ padding: '30px', background: 'rgba(255,255,255,0.02)', marginBottom: '40px', borderRadius: '30px' }}>
                       <h3 style={{ fontSize: '11px', fontWeight: 950, color: 'var(--accent)', marginBottom: '24px', letterSpacing: '4px' }}>ARENA STATISTICS</h3>
@@ -637,8 +799,25 @@ export default function Home() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <CheckCircle2 size={32} /> HOLDING
                         </div>
-                      ) : 'AUTHORIZE BID'}
+                      ) : 'BID'}
                     </button>
+
+                    <div style={{ display: 'flex', gap: '15px', marginTop: '15px' }}>
+                      <button
+                        onClick={() => setShowUpcomingModal(true)}
+                        className="btn-secondary glass"
+                        style={{ flex: 1, padding: '16px 0', fontSize: '11px', fontWeight: 950, letterSpacing: '2px', background: 'rgba(255,255,255,0.05)', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+                      >
+                        UPCOMING
+                      </button>
+                      <button
+                        onClick={() => setShowPastModal(true)}
+                        className="btn-secondary glass"
+                        style={{ flex: 1, padding: '16px 0', fontSize: '11px', fontWeight: 950, letterSpacing: '2px', background: 'rgba(255,255,255,0.05)', color: '#fff', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+                      >
+                        SOLD / UNSOLD
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center' }}>
@@ -655,28 +834,39 @@ export default function Home() {
                               className="card-glimmer"
                               style={{
                                 background: `linear-gradient(135deg, ${bidder?.color} 0%, rgba(0,0,0,0.95) 100%)`,
-                                padding: '50px',
+                                padding: '50px 30px',
                                 borderRadius: '40px',
                                 border: `2px solid rgba(255,255,255,0.2)`,
                                 boxShadow: `0 30px 60px ${bidder?.color}33`,
                                 textAlign: 'center',
                                 width: '100%',
+                                height: '520px', // Fixed height for consistency
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
                                 position: 'relative',
                                 overflow: 'hidden'
                               }}
                             >
                               <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent)' }}></div>
-                              <p style={{ fontSize: '12px', fontWeight: 950, color: 'rgba(255,255,255,0.6)', letterSpacing: '5px', marginBottom: '30px' }}>DOMINANT BIDDER</p>
+                              <p style={{ fontSize: '12px', fontWeight: 950, color: 'rgba(255,255,255,0.8)', letterSpacing: '5px', zIndex: 2 }}>DOMINANT BIDDER</p>
+
                               {bidder?.logo && (
-                                <motion.img
-                                  animate={{ y: [0, -10, 0] }}
-                                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                                  src={bidder.logo}
-                                  style={{ width: '200px', height: '200px', objectFit: 'contain', margin: '0 auto 30px', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5))' }}
-                                />
+                                <motion.div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0, margin: '20px 0' }}>
+                                  <motion.img
+                                    animate={{ y: [0, -10, 0] }}
+                                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                                    src={bidder.logo}
+                                    style={{ width: '100%', maxWidth: '180px', maxHeight: '180px', objectFit: 'contain', filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.5))' }}
+                                  />
+                                </motion.div>
                               )}
-                              <h2 style={{ fontSize: '3.5rem', fontWeight: 950, color: 'white', lineHeight: 1 }}>{bidder?.name || 'UNKNOWN'}</h2>
-                              <p style={{ fontSize: '1.8rem', marginTop: '12px', color: 'rgba(255,255,255,0.5)', fontWeight: 800 }}>{bidder?.short?.toUpperCase() || ''}</p>
+
+                              <div>
+                                <h2 style={{ fontSize: 'clamp(2rem, 3.5vw, 3.2rem)', fontWeight: 950, color: 'white', lineHeight: 1.1 }}>{bidder?.name || 'UNKNOWN'}</h2>
+                                <p style={{ fontSize: '1.8rem', marginTop: '12px', color: 'rgba(255,255,255,0.5)', fontWeight: 800 }}>{bidder?.short?.toUpperCase() || ''}</p>
+                              </div>
                             </motion.div>
                           )
                         })()

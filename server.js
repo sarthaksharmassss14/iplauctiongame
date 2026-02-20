@@ -54,13 +54,16 @@ const createInitialTeams = () => teamData.map((tc, i) => ({
 }));
 
 app.prepare().then(() => {
-    // Load players from DB in background to avoid blocking server start
+    // Disabled loading players from DB because Firestore has stale/corrupt data
+    /*
     getPlayersFromDB().then(dbPlayers => {
         if (dbPlayers && dbPlayers.length > 0) {
             playersData = dbPlayers;
             console.log(`[FIREBASE] Loaded ${playersData.length} players.`);
         }
     }).catch(err => console.error("[FIREBASE ERROR]", err.message));
+    */
+    console.log(`[LOCAL] Using ${playersData.length} players from local players.json`);
 
     const httpServer = createServer((req, res) => {
         const parsedUrl = parse(req.url, true);
@@ -186,7 +189,7 @@ app.prepare().then(() => {
             if (bidAmount > auctionState.currentBid && auctionState.status === 'bidding') {
                 auctionState.currentBid = bidAmount;
                 auctionState.highestBidderId = teamId;
-                auctionState.timer = 10;
+                auctionState.timer = 7;
                 console.log(`[BID] Manual bid in ${roomId}: ${teamId} -> ${bidAmount} Cr`);
                 io.to(roomId).emit("bid-updated", { 
                     currentBid: auctionState.currentBid, 
@@ -237,10 +240,10 @@ app.prepare().then(() => {
         auctionState.status = 'bidding';
         auctionState.currentBid = player.basePrice / 100;
         auctionState.highestBidderId = null;
-        auctionState.timer = 10;
+        auctionState.timer = 7;
         
         console.log(`[ROUND] Starting in ${roomId}: ${player.name} (Base: ${auctionState.currentBid} Cr)`);
-        io.to(roomId).emit("new-round", { player, currentBid: auctionState.currentBid, timer: 10 });
+        io.to(roomId).emit("new-round", { player, currentBid: auctionState.currentBid, timer: 7 });
 
         const timerInterval = setInterval(async () => {
             if (auctionState.status !== 'bidding') {
@@ -282,16 +285,17 @@ app.prepare().then(() => {
             const shouldBid = await getBotDecision(team, player, auctionState.currentBid, auctionState.highestBidderId);
             
             if (shouldBid && auctionState.status === 'bidding' && auctionState.highestBidderId !== team.id) {
-                auctionState.currentBid = parseFloat((auctionState.currentBid + 0.5).toFixed(2));
+                const nextBid = auctionState.highestBidderId === null ? auctionState.currentBid : auctionState.currentBid + 0.25;
+                auctionState.currentBid = parseFloat(nextBid.toFixed(2));
                 auctionState.highestBidderId = team.id;
-                auctionState.timer = 10;
+                auctionState.timer = 7;
                 
                 console.log(`[BOT BID] ${team.name} -> ${auctionState.currentBid} Cr`);
                 
                 io.to(roomId).emit("bid-updated", { 
                     currentBid: auctionState.currentBid, 
                     highestBidderId: auctionState.highestBidderId,
-                    timer: 10
+                    timer: 7
                 });
                 break; 
             }
