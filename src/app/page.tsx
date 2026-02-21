@@ -821,7 +821,7 @@ export default function Home() {
                       <div style={{ fontSize: '11px', fontWeight: 800, color: p.status === 'sold' ? '#4ade80' : '#ef4444' }}>{p.status.toUpperCase()}</div>
                       <div style={{ fontSize: '1.2rem', fontWeight: 950, textAlign: 'right' }}>
                         {p.status === 'sold' && soldTeam ? (
-                          <span style={{ color: soldTeam.color }}>{soldTeam.name} ({p.soldPrice?.toFixed(2)} Cr)</span>
+                          <span style={{ color: soldTeam.color }}>{soldTeam.short} ({p.soldPrice?.toFixed(2)} Cr)</span>
                         ) : '0 Cr'}
                       </div>
                     </div>
