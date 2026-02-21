@@ -186,7 +186,9 @@ app.prepare().then(() => {
             const { auctionState } = room;
 
             if (teamId === auctionState.highestBidderId) return; 
-            if (bidAmount > auctionState.currentBid && auctionState.status === 'bidding') {
+            
+            // Accept the bid if it's greater than current OR if it's the exact current bid but no one has bid yet (opening bid)
+            if ((bidAmount > auctionState.currentBid || (bidAmount === auctionState.currentBid && auctionState.highestBidderId === null)) && auctionState.status === 'bidding') {
                 auctionState.currentBid = bidAmount;
                 auctionState.highestBidderId = teamId;
                 auctionState.timer = 7;

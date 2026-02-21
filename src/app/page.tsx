@@ -272,6 +272,26 @@ export default function Home() {
 
   const myTeam = teams.find(t => t.id === myTeamId);
 
+  const computePlayerSplits = () => {
+    let currentIndex = 0;
+    if (currentPlayer) {
+      const foundIdx = players.findIndex(p => p.id === currentPlayer.id);
+      if (foundIdx !== -1) currentIndex = foundIdx;
+    } else {
+      currentIndex = auctionState?.currentPlayerIndex || 0;
+    }
+    const isRoundOver = auctionState?.status === 'sold' || auctionState?.status === 'unsold';
+
+    // Upcoming strictly after current index
+    const upcomingPlayers = players.slice(currentIndex + 1).filter((p: any) => !currentPlayer || p.id !== currentPlayer.id);
+
+    // Past strictly before current index (or includes current index if the round has finished completely)
+    const pastPlayers = players.slice(0, isRoundOver ? currentIndex + 1 : currentIndex).reverse();
+
+    return { upcomingPlayers, pastPlayers };
+  };
+  const { upcomingPlayers, pastPlayers } = computePlayerSplits();
+
   if (pageMode !== 'auction') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'transparent', padding: '60px 20px', position: 'relative' }}>
@@ -290,7 +310,7 @@ export default function Home() {
 
         <AnimatePresence>
           {customAlert.show && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div key="custom-alert-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -318,13 +338,13 @@ export default function Home() {
                   GOT IT, BOSS!
                 </button>
               </motion.div>
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
 
         <AnimatePresence>
           {showLeaveConfirm && (
-            <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div key="leave-confirm-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -368,7 +388,7 @@ export default function Home() {
                   </button>
                 </div>
               </motion.div>
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
 
@@ -394,14 +414,17 @@ export default function Home() {
                   <button onClick={() => setShowUpcomingModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
                 </div>
                 <div style={{ overflowY: 'auto', padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {players.filter(p => !p.status || p.status === 'upcoming' || p.status === 'current').filter(p => p.id !== currentPlayer?.id).map((p) => (
+                  {upcomingPlayers.map((p: any) => (
                     <div key={p.id} className="glass" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '12px', padding: '16px', alignItems: 'center', background: 'rgba(255,255,255,0.03)' }}>
                       <div style={{ fontWeight: 900, fontSize: '1.2rem' }}>{p.name}</div>
                       <div style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 800 }}>{p.role.toUpperCase()}</div>
                       <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 800 }}>{p.country.toUpperCase()}</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 950, textAlign: 'right' }}>{p.basePrice} Cr</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 950, textAlign: 'right' }}>{(p.basePrice / 100).toFixed(2)} Cr</div>
                     </div>
                   ))}
+                  {upcomingPlayers.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.4)', fontWeight: 800 }}>No upcoming players!</div>
+                  )}
                 </div>
               </motion.div>
             </motion.div>
@@ -430,7 +453,7 @@ export default function Home() {
                   <button onClick={() => setShowPastModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
                 </div>
                 <div style={{ overflowY: 'auto', padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {players.filter(p => p.status === 'sold' || p.status === 'unsold').slice().reverse().map((p) => {
+                  {pastPlayers.map((p: any) => {
                     const soldTeam = p.teamId ? teams.find(t => t.id === p.teamId) : null;
                     return (
                       <div key={p.id} className="glass" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr', gap: '12px', padding: '16px', alignItems: 'center', background: 'rgba(255,255,255,0.03)', borderLeft: p.status === 'sold' && soldTeam ? `4px solid ${soldTeam.color}` : '4px solid #ef4444' }}>
@@ -445,7 +468,7 @@ export default function Home() {
                       </div>
                     );
                   })}
-                  {players.filter(p => p.status === 'sold' || p.status === 'unsold').length === 0 && (
+                  {pastPlayers.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.4)', fontWeight: 800 }}>No players auctioned yet!</div>
                   )}
                 </div>
@@ -645,8 +668,177 @@ export default function Home() {
   return (
     <main style={{ minHeight: '100vh', padding: '32px', maxWidth: '1400px', margin: '0 auto', background: 'transparent' }}>
       <AnimatePresence>
+        {customAlert.show && (
+          <motion.div key="custom-alert-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCustomAlert({ ...customAlert, show: false })}
+              style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="glass"
+              style={{ position: 'relative', width: '100%', maxWidth: '400px', padding: '40px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}
+            >
+              <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                <X size={30} color="#ef4444" strokeWidth={3} />
+              </div>
+              <h3 style={{ fontSize: '10px', fontWeight: 900, color: 'var(--accent)', letterSpacing: '4px', marginBottom: '12px' }}>ATTENTION REQUIRED</h3>
+              <p style={{ fontSize: '1.2rem', fontWeight: 950, color: 'white', lineHeight: 1.4, marginBottom: '32px' }}>{customAlert.message}</p>
+              <button
+                onClick={() => setCustomAlert({ ...customAlert, show: false })}
+                className="btn-primary"
+                style={{ width: '100%', padding: '16px' }}
+              >
+                GOT IT, BOSS!
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showLeaveConfirm && (
+          <motion.div key="leave-confirm-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLeaveConfirm(false)}
+              style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="glass"
+              style={{ position: 'relative', width: '100%', maxWidth: '400px', padding: '40px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}
+            >
+              <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                <X size={30} color="#ef4444" strokeWidth={3} />
+              </div>
+              <h3 style={{ fontSize: '12px', fontWeight: 900, color: '#ef4444', letterSpacing: '4px', marginBottom: '12px' }}>LEAVE AUCTION?</h3>
+              <p style={{ fontSize: '1.2rem', fontWeight: 800, color: 'rgba(255,255,255,0.7)', lineHeight: 1.4, marginBottom: '32px' }}>Are you sure you want to exit? Your progress might be disrupted.</p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => setShowLeaveConfirm(false)}
+                  className="btn-secondary glass"
+                  style={{ flex: 1, padding: '16px', background: 'rgba(255,255,255,0.05)', color: '#fff' }}
+                >
+                  RESUME
+                </button>
+                <button
+                  onClick={() => {
+                    setShowLeaveConfirm(false);
+                    setPageMode('initial');
+                    setIsJoined(false);
+                    setJoinRoomId("");
+                    setIsHost(false);
+                    setErrorStatus("");
+                  }}
+                  className="btn-primary"
+                  style={{ flex: 1, padding: '16px', background: '#ef4444', color: '#fff' }}
+                >
+                  EXIT
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showUpcomingModal && (
+          <motion.div key="upcoming-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowUpcomingModal(false)}
+              style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="glass"
+              style={{ position: 'relative', width: '100%', maxWidth: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', overflow: 'hidden' }}
+            >
+              <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 900, color: 'var(--accent)', letterSpacing: '4px' }}>UPCOMING PLAYERS</h3>
+                <button onClick={() => setShowUpcomingModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+              </div>
+              <div style={{ overflowY: 'auto', padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {upcomingPlayers.map((p: any) => (
+                  <div key={p.id} className="glass" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '12px', padding: '16px', alignItems: 'center', background: 'rgba(255,255,255,0.03)' }}>
+                    <div style={{ fontWeight: 900, fontSize: '1.2rem' }}>{p.name}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 800 }}>{p.role.toUpperCase()}</div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 800 }}>{p.country.toUpperCase()}</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 950, textAlign: 'right' }}>{(p.basePrice / 100).toFixed(2)} Cr</div>
+                  </div>
+                ))}
+                {upcomingPlayers.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.4)', fontWeight: 800 }}>No upcoming players!</div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showPastModal && (
+          <motion.div key="past-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPastModal(false)}
+              style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="glass"
+              style={{ position: 'relative', width: '100%', maxWidth: '700px', maxHeight: '80vh', display: 'flex', flexDirection: 'column', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)', overflow: 'hidden' }}
+            >
+              <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3 style={{ fontSize: '14px', fontWeight: 900, color: 'var(--accent)', letterSpacing: '4px' }}>SOLD & UNSOLD</h3>
+                <button onClick={() => setShowPastModal(false)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={24} /></button>
+              </div>
+              <div style={{ overflowY: 'auto', padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {pastPlayers.map((p) => {
+                  const soldTeam = p.teamId ? teams.find(t => t.id === p.teamId) : null;
+                  return (
+                    <div key={p.id} className="glass" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr', gap: '12px', padding: '16px', alignItems: 'center', background: 'rgba(255,255,255,0.03)', borderLeft: p.status === 'sold' && soldTeam ? `4px solid ${soldTeam.color}` : '4px solid #ef4444' }}>
+                      <div style={{ fontWeight: 900, fontSize: '1.2rem' }}>{p.name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 800 }}>{p.role.toUpperCase()}</div>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: p.status === 'sold' ? '#4ade80' : '#ef4444' }}>{p.status.toUpperCase()}</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 950, textAlign: 'right' }}>
+                        {p.status === 'sold' && soldTeam ? (
+                          <span style={{ color: soldTeam.color }}>{soldTeam.name} ({p.soldPrice?.toFixed(2)} Cr)</span>
+                        ) : '0 Cr'}
+                      </div>
+                    </div>
+                  );
+                })}
+                {pastPlayers.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.4)', fontWeight: 800 }}>No players auctioned yet!</div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
         {teamSheetId && sheetTeam && (
           <motion.div
+            key="team-sheet-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
