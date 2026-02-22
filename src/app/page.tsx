@@ -38,6 +38,26 @@ export default function Home() {
     stateRef.current = { userName, selectedTeamId, roomId, joinRoomId, isHost, maxHumans, isJoined };
   }, [userName, selectedTeamId, roomId, joinRoomId, isHost, maxHumans, isJoined]);
 
+  // Restore session
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sessionStr = sessionStorage.getItem('auctionSession');
+      if (sessionStr) {
+        try {
+          const session = JSON.parse(sessionStr);
+          if (session.roomId && session.userName && session.teamId) {
+            setUserName(session.userName);
+            setJoinRoomId(session.roomId);
+            setRoomId(session.roomId);
+            setSelectedTeamId(session.teamId);
+            setIsJoined(true);
+            setPageMode('join');
+          }
+        } catch (err) { }
+      }
+    }
+  }, []);
+
   // Connection timeout logic
   useEffect(() => {
     let timeout: NodeJS.Timeout;
@@ -141,6 +161,19 @@ export default function Home() {
       setPlayers(data.players);
       setTeams(data.teams);
       setAuctionState(data.auctionState);
+
+      sessionStorage.setItem('auctionSession', JSON.stringify({
+        roomId: stateRef.current.roomId || stateRef.current.joinRoomId,
+        userName: stateRef.current.userName,
+        teamId: stateRef.current.selectedTeamId
+      }));
+
+      // Set currentPlayer if the game is already in progress
+      if (data.auctionState.status === 'bidding' || data.auctionState.status === 'sold' || data.auctionState.status === 'unsold') {
+        const p = data.players[data.auctionState.currentPlayerIndex];
+        setCurrentPlayer(p);
+      }
+
       // Once we receive init-state, we are officially in. Stop the "isJoined" trigger.
       setIsJoined(false);
       if (data.auctionState.status !== 'lobby') {
@@ -374,6 +407,7 @@ export default function Home() {
                   </button>
                   <button
                     onClick={() => {
+                      sessionStorage.removeItem('auctionSession');
                       setShowLeaveConfirm(false);
                       setPageMode('initial');
                       setIsJoined(false);
@@ -647,9 +681,12 @@ export default function Home() {
                 <button
                   className="btn-secondary"
                   style={{ padding: '12px 24px' }}
-                  onClick={() => navigator.clipboard.writeText(`${window.location.origin}?room=${roomId}`)}
+                  onClick={() => {
+                    navigator.clipboard.writeText(roomId);
+                    setCustomAlert({ show: true, message: "ROOM CODE COPIED TO CLIPBOARD!" });
+                  }}
                 >
-                  COPY LINK
+                  COPY CODE
                 </button>
                 {isHost && (
                   <button className="btn-primary glimmer-btn" style={{ padding: '12px 32px' }} onClick={startNextAuction}>START NOW</button>
