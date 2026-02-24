@@ -5,6 +5,7 @@ import io from "socket.io-client";
 import { Player, Team, AuctionState } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { Timer, Wallet, Trophy, Gavel, CheckCircle2, X, Star, Users, Zap, TrendingUp } from "lucide-react";
+import { playAudioEffect } from "@/lib/audio";
 
 export default function Home() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -215,13 +216,23 @@ export default function Home() {
         setBidHistory((prev: any) => [{ teamName: bidder?.name, amount: data.currentBid }, ...prev].slice(0, 5));
         return currentTeams;
       });
+      if (data.highestBidderId) {
+        playAudioEffect('coin');
+      }
     });
 
-    socket.on("timer-tick", (time: number) => setAuctionState((prev: any) => ({ ...prev, timer: time })));
+    socket.on("timer-tick", (time: number) => {
+      setAuctionState((prev: any) => ({ ...prev, timer: time }));
+      if (time > 0 && time <= 3) {
+        playAudioEffect('tick');
+      }
+    });
+
     socket.on("player-sold", (data: any) => {
       setAuctionState((prev: any) => ({ ...prev, status: 'sold' }));
       setTeams(prev => prev.map(t => t.id === data.team.id ? data.team : t));
       setPlayers(prev => prev.map(p => p.id === data.player.id ? data.player : p));
+      playAudioEffect('gavel');
     });
     socket.on("player-unsold", (data: any) => {
       setAuctionState((prev: any) => ({ ...prev, status: 'unsold' }));
@@ -295,6 +306,11 @@ export default function Home() {
     const incrementedBid = auctionState.highestBidderId === null ? auctionState.currentBid : auctionState.currentBid + 0.25;
 
     socketRef.current.emit("place-bid", { roomId, teamId: myTeamId, bidAmount: parseFloat(incrementedBid.toFixed(2)) });
+  };
+
+  const handleSkip = () => {
+    if (!currentPlayer || auctionState?.status !== 'bidding' || !socketRef.current) return;
+    socketRef.current.emit("skip-player", { roomId, teamId: myTeamId });
   };
 
   const startNextAuction = () => {
@@ -952,7 +968,7 @@ export default function Home() {
       </header>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: '40px', position: 'relative', zIndex: 10 }}>
-        <div className="glass" style={{ minWidth: 0, padding: '70px 60px 40px', textAlign: 'center', position: 'relative', border: `1px solid rgba(255,255,255,0.08)`, minHeight: '650px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div className="glass" style={{ minWidth: 0, padding: auctionState?.status === 'bidding' && currentPlayer ? '85px 60px 40px' : '70px 60px 40px', textAlign: 'center', position: 'relative', border: `1px solid rgba(255,255,255,0.08)`, minHeight: '650px', display: 'flex', flexDirection: 'column', justifyContent: auctionState?.status === 'bidding' && currentPlayer ? 'flex-start' : 'center' }}>
           <div style={{ position: 'absolute', inset: 0, backgroundColor: myTeam?.color, opacity: 0.05, zIndex: 0, borderRadius: '24px' }}></div>
 
           <button
@@ -963,7 +979,9 @@ export default function Home() {
           </button>
 
           <AnimatePresence mode="wait">
-            {auctionState?.status === 'bidding' && currentPlayer ? (
+            {auctionState?.status === 'finished' ? (
+              <PostAuctionScreen key="post-auction" teams={teams} players={players} teamData={teamData} />
+            ) : auctionState?.status === 'bidding' && currentPlayer ? (
               <motion.div
                 key={currentPlayer.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -973,14 +991,15 @@ export default function Home() {
               >
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: '50px', alignItems: 'center', textAlign: 'left' }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center' }}>
-                      <span style={{ background: 'var(--accent)', color: 'black', padding: '6px 16px', borderRadius: '30px', fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '1px' }}>{currentPlayer.role}</span>
-                      <span style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '6px 16px', borderRadius: '30px', fontSize: '11px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '1px' }}>{currentPlayer.country}</span>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span style={{ background: 'var(--accent)', color: 'black', padding: '4px 12px', borderRadius: '30px', fontSize: '10px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '1px' }}>{currentPlayer.role}</span>
+                      <span style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '4px 12px', borderRadius: '30px', fontSize: '10px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '1px' }}>{currentPlayer.country}</span>
+                      <span style={{ fontSize: '9px', fontWeight: 800, color: '#ef4444', letterSpacing: '1px', marginLeft: '2px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>⚠ YOU NEED MIN 15 PLAYERS</span>
                       <motion.div
                         animate={auctionState?.timer <= 3 ? { scale: [1, 1.1, 1], boxShadow: ["0px 0px 0px rgba(239,68,68,0)", "0px 0px 30px rgba(239,68,68,0.8)", "0px 0px 0px rgba(239,68,68,0)"] } : {}}
                         transition={{ repeat: Infinity, duration: 0.6 }}
-                        style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', background: auctionState?.timer <= 3 ? '#ef4444' : 'rgba(255,255,255,0.05)', color: auctionState?.timer <= 3 ? '#fff' : 'var(--accent)', border: `1px solid ${auctionState?.timer <= 3 ? '#ef4444' : 'rgba(255,255,255,0.1)'}`, padding: '6px 18px', borderRadius: '30px', fontSize: '14px', fontWeight: 950, letterSpacing: '2px', transition: auctionState?.timer <= 3 ? 'none' : 'all 0.3s' }}>
-                        <Timer size={16} />
+                        style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', background: auctionState?.timer <= 3 ? '#ef4444' : 'rgba(255,255,255,0.05)', color: auctionState?.timer <= 3 ? '#fff' : 'var(--accent)', border: `1px solid ${auctionState?.timer <= 3 ? '#ef4444' : 'rgba(255,255,255,0.1)'}`, padding: '4px 14px', borderRadius: '30px', fontSize: '12px', fontWeight: 950, letterSpacing: '1px', transition: auctionState?.timer <= 3 ? 'none' : 'all 0.3s' }}>
+                        <Timer size={14} />
                         {auctionState?.timer <= 3 ? `FINAL CALL : ${auctionState?.timer}S` : `${auctionState?.timer}S`}
                       </motion.div>
                     </div>
@@ -996,10 +1015,10 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                      <span style={{ fontSize: '2rem', color: 'var(--accent)', fontWeight: 950, marginTop: '15px' }}>₹</span>
-                      <p className="glow-text" style={{ fontSize: '7rem', fontWeight: 950, lineHeight: 1 }}>{auctionState.currentBid.toFixed(2)}</p>
-                      <span style={{ fontSize: '1.5rem', color: '#94a3b8', fontWeight: 900, marginTop: '45px' }}>CR</span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                      <span style={{ fontSize: '2.5rem', color: 'var(--accent)', fontWeight: 950 }}>₹</span>
+                      <p className="glow-text" style={{ fontSize: 'clamp(4rem, 6vw, 5.5rem)', fontWeight: 950, lineHeight: 1 }}>{auctionState.currentBid.toFixed(2)}</p>
+                      <span style={{ fontSize: '1.5rem', color: '#94a3b8', fontWeight: 900 }}>CR</span>
                     </div>
                     <p style={{ fontSize: '12px', fontWeight: 900, color: '#94a3b8', letterSpacing: '4px', marginBottom: '40px', marginTop: '10px' }}>CURRENT MARKET VALUATION</p>
 
@@ -1047,6 +1066,16 @@ export default function Home() {
                         SOLD / UNSOLD
                       </button>
                     </div>
+
+                    {teams.filter(t => !t.isBot).length === 1 && (
+                      <button
+                        onClick={handleSkip}
+                        className="btn-secondary glass glimmer-btn"
+                        style={{ width: '100%', marginTop: '15px', padding: '16px 0', fontSize: '12px', fontWeight: 950, letterSpacing: '2px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', cursor: 'pointer', transition: '0.3s' }}
+                      >
+                        SKIP PLAYER (AUTO-ASSIGN)
+                      </button>
+                    )}
                   </div>
 
                   <div style={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center' }}>
@@ -1272,5 +1301,100 @@ function Stat({ value, label, color }: any) {
 function Tab({ active, onClick, text }: any) {
   return (
     <button onClick={onClick} style={{ flex: 1, padding: '24px', border: 'none', background: active ? 'rgba(255,255,255,0.05)' : 'transparent', color: active ? 'var(--accent)' : '#fff', fontWeight: 950, cursor: 'pointer', transition: '0.3s', fontSize: '12px', letterSpacing: '2px', borderBottom: active ? '4px solid var(--accent)' : '4px solid transparent' }}>{text}</button>
+  );
+}
+
+function PostAuctionScreen({ teams, players, teamData }: any) {
+  // Score calculation
+  const scoredTeams = teams.map((team: any) => {
+    let score = team.squad.length * 2.0; // Up to ~42 points for 21 players
+
+    let wkCount = 0;
+    let batCount = 0;
+    let bowlCount = 0;
+    let arCount = 0;
+    let starCount = 0;
+
+    team.squad.forEach((playerId: number) => {
+      const p = players.find((p: any) => p.id === playerId);
+      if (p) {
+        if (p.role === "Wicketkeeper") wkCount++;
+        else if (p.role === "Batsman") batCount++;
+        else if (p.role === "Bowler") bowlCount++;
+        else if (p.role === "All-rounder") arCount++;
+
+        if (p.basePrice >= 100) starCount++; // Star player (>= 1.0Cr base)
+      }
+    });
+
+    // Balance points
+    if (wkCount >= 1) score += 5;
+    if (wkCount >= 2) score += 4;
+
+    if (batCount >= 5) score += 10;
+    else if (batCount >= 3) score += 5;
+
+    if (bowlCount >= 5) score += 10;
+    else if (bowlCount >= 3) score += 5;
+
+    if (arCount >= 2) score += 10;
+    else if (arCount >= 1) score += 5;
+
+    score += (starCount * 4); // Up to 20-30 pts for star players
+
+    // Formatting score to be out of 100 max
+    score = Math.min(100, score);
+
+    // Penalty for failing minimum squad requirement
+    if (team.squad.length < 15) {
+      score = 0;
+    }
+
+    const info = teamData.find((td: any) => td.id === team.id);
+
+    return { ...team, score: Math.round(score), info };
+  }).sort((a: any, b: any) => b.score - a.score);
+
+  return (
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={{ position: 'absolute', inset: 0, zIndex: 100, background: 'rgba(5, 5, 5, 0.95)', padding: '40px', borderRadius: '24px', overflowY: 'auto' }}>
+      <Trophy size={80} color="var(--accent)" style={{ margin: '0 auto 20px' }} />
+      <h1 style={{ fontSize: '3rem', fontWeight: 950, marginBottom: '10px' }}>GAME OVER</h1>
+      <p style={{ color: '#94a3b8', letterSpacing: '4px', fontWeight: 900, marginBottom: '40px' }}>FINAL SQUAD RATINGS ACCORDING TO OUR EXPERT AI ENGINE</p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+        {scoredTeams.map((t: any, idx: number) => (
+          <div key={t.id} style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '20px', border: idx === 0 ? `2px solid ${t.info?.color}` : '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ width: '40px', fontSize: '2.5rem', fontWeight: 950, color: idx === 0 ? t.info?.color : '#94a3b8' }}>#{idx + 1}</div>
+            <img src={t.info?.logo} style={{ width: '50px', height: '50px', objectFit: 'contain', margin: '0 20px' }} />
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 950, color: 'white' }}>{t.name}</h3>
+              <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 800 }}>{t.squad.length} Players</p>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <span style={{ fontSize: '2rem', fontWeight: 950, color: 'var(--accent)' }}>{t.score} ⭐</span>
+              <p style={{ fontSize: '10px', color: '#64748b', fontWeight: 900 }}>RATING</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button
+        className="btn-primary glimmer-btn"
+        style={{ marginTop: '40px', padding: '20px 40px', fontSize: '1.2rem', width: '100%' }}
+        onClick={() => {
+          if (navigator.share) {
+            navigator.share({
+              title: 'IPL Auction Results',
+              text: `I just built my IPL Squad! Scored ${scoredTeams.find((t: any) => !t.isBot)?.score || 0}/100 rating points on the Live IPL Mock Auction!`,
+              url: window.location.href,
+            }).catch(console.error);
+          } else {
+            alert('Share feature is not supported on this browser context. Please take a screenshot to share on Twitter/Instagram!');
+          }
+        }}
+      >
+        SHARE RATING TO SOCIALS
+      </button>
+    </motion.div>
   );
 }
