@@ -204,9 +204,14 @@ export default function Home() {
 
     socket.on("new-round", (data: any) => {
       setPageMode('auction');
-      setCurrentPlayer(data.player);
-      setAuctionState((prev: any) => ({ ...prev, currentBid: data.currentBid, timer: data.timer, status: 'bidding', highestBidderId: null }));
-      setBidHistory([]);
+      if (data.status === 'waiting_accelerated') {
+        setAuctionState((prev: any) => ({ ...prev, status: 'waiting_accelerated', currentPlayerIndex: data.currentPlayerIndex, timer: 0 }));
+        setCurrentPlayer(null);
+      } else {
+        setCurrentPlayer(data.player);
+        setAuctionState((prev: any) => ({ ...prev, currentBid: data.currentBid, timer: data.timer, status: 'bidding', highestBidderId: null, currentPlayerIndex: data.currentPlayerIndex }));
+        setBidHistory([]);
+      }
     });
 
     socket.on("bid-updated", (data: any) => {
@@ -237,6 +242,15 @@ export default function Home() {
     socket.on("player-unsold", (data: any) => {
       setAuctionState((prev: any) => ({ ...prev, status: 'unsold' }));
       setPlayers(prev => prev.map(p => p.id === data.player.id ? { ...p, status: 'unsold' } : p));
+    });
+
+    socket.on("players-updated", (newPlayers: Player[]) => {
+      setPlayers(newPlayers);
+    });
+
+    socket.on("prompt-accelerated", (data: any) => {
+      setAuctionState((prev: any) => ({ ...prev, status: 'waiting_accelerated' }));
+      setCurrentPlayer(null);
     });
 
     return () => {
@@ -1022,33 +1036,55 @@ export default function Home() {
                     </div>
                     <p style={{ fontSize: '12px', fontWeight: 900, color: '#94a3b8', letterSpacing: '4px', marginBottom: '40px', marginTop: '10px' }}>CURRENT MARKET VALUATION</p>
 
-                    <button
-                      onClick={handleBid}
-                      disabled={auctionState.highestBidderId === myTeamId}
-                      className={`btn-primary ${auctionState.highestBidderId !== myTeamId ? 'glimmer-btn' : ''}`}
-                      style={{
-                        width: '100%',
-                        fontSize: '1.8rem',
-                        height: '90px',
-                        borderRadius: '28px',
-                        background: auctionState.highestBidderId === myTeamId ? 'rgba(255,255,255,0.05)' : 'var(--accent)',
-                        opacity: 1,
-                        cursor: auctionState.highestBidderId === myTeamId ? 'not-allowed' : 'pointer',
-                        color: auctionState.highestBidderId === myTeamId ? '#fff' : '#000',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        whiteSpace: 'nowrap',
-                        fontWeight: 950,
-                        letterSpacing: '2px'
-                      }}
-                    >
-                      {auctionState.highestBidderId === myTeamId ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <CheckCircle2 size={32} /> HOLDING
-                        </div>
-                      ) : 'BID'}
-                    </button>
+                    {(() => {
+                      const nextBidCost = auctionState.highestBidderId === null ? (currentPlayer.basePrice / 100) : auctionState.currentBid + 0.25;
+                      const hasMaxSquad = (myTeam?.squad?.length || 0) >= 21;
+                      const hasMaxForeign = currentPlayer.isForeign && (myTeam?.foreignCount || 0) >= 8;
+                      const hasNoMoney = (myTeam?.budget || 0) < nextBidCost;
+                      const isHolding = auctionState.highestBidderId === myTeamId;
+                      const canBid = !isHolding && !hasMaxSquad && !hasMaxForeign && !hasNoMoney;
+
+                      let btnText = 'BID';
+                      if (isHolding) btnText = 'HOLDING';
+                      else if (hasMaxSquad) btnText = 'SQUAD FULL (21)';
+                      else if (hasMaxForeign) btnText = 'MAX 8 OVERSEAS';
+                      else if (hasNoMoney) btnText = 'INSUFFICIENT PURSE';
+
+                      return (
+                        <button
+                          onClick={handleBid}
+                          disabled={!canBid}
+                          className={`btn-primary ${canBid ? 'glimmer-btn' : ''}`}
+                          style={{
+                            width: '100%',
+                            fontSize: '1.8rem',
+                            height: '90px',
+                            borderRadius: '28px',
+                            background: !canBid ? 'rgba(255,255,255,0.05)' : 'var(--accent)',
+                            opacity: 1,
+                            cursor: !canBid ? 'not-allowed' : 'pointer',
+                            color: !canBid ? '#fff' : '#000',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            whiteSpace: 'nowrap',
+                            fontWeight: 950,
+                            letterSpacing: '2px'
+                          }}
+                        >
+                          {isHolding ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <CheckCircle2 size={32} /> HOLDING
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              {!canBid && <X size={24} color="#ef4444" />}
+                              {btnText}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })()}
 
                     <div style={{ display: 'flex', gap: '15px', marginTop: '15px' }}>
                       <button
@@ -1171,6 +1207,29 @@ export default function Home() {
                         </motion.div>
                       );
                     })()
+                  ) : auctionState?.status === 'waiting_accelerated' ? (
+                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
+                      <Gavel size={120} color="var(--accent)" style={{ margin: '0 auto 32px' }} />
+                      <h2 style={{ fontSize: '4rem', fontWeight: 950, color: 'white', letterSpacing: '-2px', marginBottom: '16px' }}>ROUND 1 OVER</h2>
+                      <p style={{ fontSize: '1.4rem', color: '#64748b', fontWeight: 800, marginBottom: '40px', letterSpacing: '2px' }}>DO YOU WANT TO BRING UNSOLD PLAYERS FOR AN ACCELERATED AUCTION?</p>
+
+                      <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+                        <button
+                          onClick={() => socketRef.current?.emit("start-accelerated", { roomId })}
+                          className="btn-primary glimmer-btn"
+                          style={{ padding: '20px 40px', fontSize: '1.2rem', minWidth: '250px' }}
+                        >
+                          YES, BRING UNSOLD PLAYERS
+                        </button>
+                        <button
+                          onClick={() => socketRef.current?.emit("end-auction", { roomId })}
+                          className="btn-secondary glass"
+                          style={{ padding: '20px 40px', fontSize: '1.2rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', minWidth: '250px', cursor: 'pointer' }}
+                        >
+                          NO, END AUCTION NOW
+                        </button>
+                      </div>
+                    </motion.div>
                   ) : auctionState?.status === 'unsold' ? (
                     <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
                       <Gavel size={120} color="#475569" style={{ margin: '0 auto 32px' }} />
@@ -1305,6 +1364,29 @@ function Tab({ active, onClick, text }: any) {
 }
 
 function PostAuctionScreen({ teams, players, teamData }: any) {
+  const [analyzingTeamId, setAnalyzingTeamId] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+
+  const handleAnalyzeTeam = async (t: any) => {
+    setAnalyzingTeamId(t.id);
+    setAnalysisResult(null);
+    try {
+      const squadPlayers = t.squad.map((id: number) => players.find((p: any) => p.id === id)).filter(Boolean);
+      const res = await fetch('/api/analyze-team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamName: t.info?.name || t.name, players: squadPlayers })
+      });
+      const data = await res.json();
+      setAnalysisResult({ team: t, data });
+    } catch (e) {
+      console.error(e);
+      alert("Failed to analyze team");
+    } finally {
+      setAnalyzingTeamId(null);
+    }
+  };
+
   // Score calculation
   const scoredTeams = teams.map((team: any) => {
     let score = team.squad.length * 2.0; // Up to ~42 points for 21 players
@@ -1359,11 +1441,22 @@ function PostAuctionScreen({ teams, players, teamData }: any) {
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={{ position: 'absolute', inset: 0, zIndex: 100, background: 'rgba(5, 5, 5, 0.95)', padding: '40px', borderRadius: '24px', overflowY: 'auto' }}>
       <Trophy size={80} color="var(--accent)" style={{ margin: '0 auto 20px' }} />
       <h1 style={{ fontSize: '3rem', fontWeight: 950, marginBottom: '10px' }}>GAME OVER</h1>
-      <p style={{ color: '#94a3b8', letterSpacing: '4px', fontWeight: 900, marginBottom: '40px' }}>FINAL SQUAD RATINGS ACCORDING TO OUR EXPERT AI ENGINE</p>
+      <p style={{ color: '#94a3b8', letterSpacing: '4px', fontWeight: 900, marginBottom: '40px', cursor: 'default' }}>FINAL SQUAD RATINGS ACCORDING TO OUR EXPERT AI ENGINE. <br /><span style={{ color: 'var(--accent)' }}>CLICK ON ANY TEAM TO VIEW AI GENERATED BEST 11 AND TEAM ANALYSIS</span></p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
         {scoredTeams.map((t: any, idx: number) => (
-          <div key={t.id} style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '20px', border: idx === 0 ? `2px solid ${t.info?.color}` : '1px solid rgba(255,255,255,0.1)' }}>
+          <div
+            key={t.id}
+            onClick={() => { if (analyzingTeamId !== t.id) handleAnalyzeTeam(t); }}
+            style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '20px', border: idx === 0 ? `2px solid ${t.info?.color}` : '1px solid rgba(255,255,255,0.1)', cursor: analyzingTeamId === t.id ? 'wait' : 'pointer', opacity: analyzingTeamId === t.id ? 0.7 : 1, transition: '0.2s', position: 'relative', overflow: 'hidden' }}
+          >
+            {analyzingTeamId === t.id && (
+              <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
+                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                  <Star size={24} color="var(--accent)" />
+                </motion.div>
+              </div>
+            )}
             <div style={{ width: '40px', fontSize: '2.5rem', fontWeight: 950, color: idx === 0 ? t.info?.color : '#94a3b8' }}>#{idx + 1}</div>
             <img src={t.info?.logo} style={{ width: '50px', height: '50px', objectFit: 'contain', margin: '0 20px' }} />
             <div style={{ flex: 1, textAlign: 'left' }}>
@@ -1395,6 +1488,64 @@ function PostAuctionScreen({ teams, players, teamData }: any) {
       >
         SHARE RATING TO SOCIALS
       </button>
+
+      {/* AI Analysis Modal */}
+      <AnimatePresence>
+        {analysisResult && (
+          <motion.div key="analysis-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="glass"
+              style={{ position: 'relative', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', border: `2px solid ${analysisResult.team.info?.color || 'rgba(255,255,255,0.1)'}`, boxShadow: `0 25px 50px -12px ${analysisResult.team.info?.color || 'rgba(0,0,0,0.5)'}40`, overflow: 'hidden' }}
+            >
+              <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: `linear-gradient(135deg, ${analysisResult.team.info?.color}40 0%, transparent 100%)` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  {analysisResult.team.info?.logo && <img src={analysisResult.team.info.logo} style={{ width: '50px', height: '50px', objectFit: 'contain' }} />}
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 950, color: 'white', letterSpacing: '2px' }}>{analysisResult.team.info?.name} - AI ANALYSIS</h3>
+                </div>
+                <button onClick={() => setAnalysisResult(null)} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={32} /></button>
+              </div>
+              <div style={{ overflowY: 'auto', padding: '32px', flex: 1, display: 'flex', flexDirection: 'column', gap: '32px' }}>
+
+                {/* Best 11 Section */}
+                <div>
+                  <h4 style={{ fontSize: '1.2rem', fontWeight: 950, color: 'var(--accent)', marginBottom: '16px', letterSpacing: '4px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '8px' }}>STARTING 11</h4>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                    {analysisResult.data?.best11?.map((p: string, i: number) => (
+                      <div key={i} style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 16px', borderRadius: '8px', fontSize: '1rem', fontWeight: 800, border: '1px solid rgba(255,255,255,0.1)' }}>
+                        {i + 1}. {p}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* SWOT Analysis */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                  <div className="glass" style={{ padding: '24px', borderRadius: '16px', borderLeft: '4px solid #4ade80', background: 'rgba(74, 222, 128, 0.05)' }}>
+                    <h4 style={{ fontSize: '1.2rem', fontWeight: 950, color: '#4ade80', marginBottom: '16px', letterSpacing: '2px' }}>KEY STRENGTHS</h4>
+                    <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '12px', margin: 0 }}>
+                      {analysisResult.data?.strengths?.map((s: string, i: number) => (
+                        <li key={i} style={{ fontSize: '1rem', color: 'white', lineHeight: 1.4, fontWeight: 800 }}>{s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="glass" style={{ padding: '24px', borderRadius: '16px', borderLeft: '4px solid #ef4444', background: 'rgba(239, 68, 68, 0.05)' }}>
+                    <h4 style={{ fontSize: '1.2rem', fontWeight: 950, color: '#ef4444', marginBottom: '16px', letterSpacing: '2px' }}>AREAS OF CONCERN</h4>
+                    <ul style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '12px', margin: 0 }}>
+                      {analysisResult.data?.weaknesses?.map((w: string, i: number) => (
+                        <li key={i} style={{ fontSize: '1rem', color: 'white', lineHeight: 1.4, fontWeight: 800 }}>{w}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

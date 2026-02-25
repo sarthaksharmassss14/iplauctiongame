@@ -184,14 +184,21 @@ app.prepare().then(() => {
             const room = rooms[roomId];
             if (!room) return;
             const { auctionState } = room;
-
             if (teamId === auctionState.highestBidderId) return; 
+
+            const team = room.teams.find(t => t.id === teamId);
+            const player = room.players[auctionState.currentPlayerIndex];
+            
+            if (!team || !player) return;
+            if (team.squad.length >= 21) return;
+            if (player.isForeign && team.foreignCount >= 8) return;
+            if (team.budget < bidAmount) return;
             
             // Accept the bid if it's greater than current OR if it's the exact current bid but no one has bid yet (opening bid)
             if ((bidAmount > auctionState.currentBid || (bidAmount === auctionState.currentBid && auctionState.highestBidderId === null)) && auctionState.status === 'bidding') {
                 auctionState.currentBid = bidAmount;
                 auctionState.highestBidderId = teamId;
-                auctionState.timer = auctionState.isAccelerated ? 5 : 7;
+                auctionState.timer = auctionState.isAccelerated ? 3 : 7;
                 console.log(`[BID] Manual bid in ${roomId}: ${teamId} -> ${bidAmount} Cr`);
                 io.to(roomId).emit("bid-updated", { 
                     currentBid: auctionState.currentBid, 
@@ -215,6 +222,12 @@ app.prepare().then(() => {
             const player = players[auctionState.currentPlayerIndex];
             if (!player) return;
 
+            // If a player has already been bid on, fast-forward to the end instead of re-assigning randomly!
+            if (auctionState.highestBidderId !== null) {
+                auctionState.timer = 0;
+                return;
+            }
+
             const bots = teams.filter(t => t.isBot && t.squad.length < 21 && t.budget > 1.0 && (!player.isForeign || t.foreignCount < 8));
             
             if (bots.length > 0) {
@@ -230,20 +243,23 @@ app.prepare().then(() => {
                 let isUnsold = false;
                 let finalBid = 0;
                 const baseCr = player.basePrice / 100;
+                const currentBidCr = auctionState.currentBid;
 
                 if (isLowCostTarget) {
-                    // 50% chance to just go unsold
-                    if (Math.random() < 0.5) {
+                    // 50% chance to just go unsold (only if no bids yet)
+                    if (Math.random() < 0.5 && auctionState.highestBidderId === null) {
                         isUnsold = true;
                     } else {
                         // Sold at low price, below 6 CR or very close to base price
                         finalBid = baseCr + Math.random() * Math.min(4.0, 6.0 - baseCr);
-                        if (finalBid < baseCr) finalBid = baseCr;
+                        if (finalBid < currentBidCr) finalBid = currentBidCr + Math.random() * 2.0;
                     }
                 } else {
                     // Random price between 2 CR and 11 CR for normal skipped players
                     finalBid = 2.0 + Math.random() * 9.0; 
-                    finalBid = Math.max(baseCr, finalBid);
+                    if (finalBid < currentBidCr) {
+                        finalBid = currentBidCr + Math.random() * 3.0;
+                    }
                 }
 
                 if (isUnsold) {
@@ -252,9 +268,9 @@ app.prepare().then(() => {
                     const randomBot = bots[Math.floor(Math.random() * bots.length)];
                     
                     // Keep some padding for bot budget 
-                    if (finalBid > (randomBot.budget - 3.0)) finalBid = randomBot.budget - 3.0;
+                    if (finalBid > (randomBot.budget - 3.0)) finalBid = Math.max(currentBidCr, randomBot.budget - 3.0);
                     // Round to nearest 0.25 (standardizing the bid steps)
-                    finalBid = Math.max(baseCr, Math.floor(finalBid * 4) / 4);
+                    finalBid = Math.max(currentBidCr, Math.floor(finalBid * 4) / 4);
 
                     auctionState.currentBid = finalBid;
                     auctionState.highestBidderId = randomBot.id;
@@ -276,6 +292,33 @@ app.prepare().then(() => {
             const room = rooms[roomId];
             if (room && room.auctionState.status === 'lobby') {
                 startAuction(roomId);
+            }
+        });
+
+        socket.on("start-accelerated", ({ roomId }) => {
+            const room = rooms[roomId];
+            if (room && room.auctionState.status === 'waiting_accelerated') {
+                const { auctionState, players } = room;
+                const unsoldPlayers = players.filter(p => p.status === 'unsold' && !p.id.toString().includes('_accel'));
+                auctionState.isAccelerated = true;
+                const acceleratedPlayers = unsoldPlayers.map(p => ({
+                    ...p,
+                    id: p.id + '_accel',
+                    status: 'pending' 
+                }));
+                room.players = [...players, ...acceleratedPlayers];
+                io.to(roomId).emit("players-updated", room.players);
+                console.log(`[AUCTION] Starting Accelerated Round for ${acceleratedPlayers.length} players!`);
+                startNewRound(roomId);
+            }
+        });
+
+        socket.on("end-auction", ({ roomId }) => {
+            const room = rooms[roomId];
+            if (room && room.auctionState.status === 'waiting_accelerated') {
+                room.auctionState.status = 'finished';
+                console.log(`[AUCTION] Finished in ${roomId}!`);
+                io.to(roomId).emit("auction-finished");
             }
         });
     });
@@ -306,15 +349,27 @@ app.prepare().then(() => {
             if (!auctionState.isAccelerated) {
                 const unsoldPlayers = players.filter(p => p.status === 'unsold' && !p.id.toString().includes('_accel'));
                 if (unsoldPlayers.length > 0) {
-                    auctionState.isAccelerated = true;
-                    const acceleratedPlayers = unsoldPlayers.map(p => ({
-                        ...p,
-                        id: p.id + '_accel',
-                        status: 'pending' 
-                    }));
-                    room.players = [...players, ...acceleratedPlayers];
-                    players = room.players;
-                    console.log(`[AUCTION] Starting Accelerated Round for ${acceleratedPlayers.length} players!`);
+                    if (auctionState.maxHumans === 1) {
+                         // Let human choose instead of auto starting
+                         auctionState.status = 'waiting_accelerated';
+                         io.to(roomId).emit("prompt-accelerated", { unsoldPlayersCount: unsoldPlayers.length });
+                         // Important: do not let timer continue. Ensure status is updated. We update everyone via tick just to push status change.
+                         io.to(roomId).emit("timer-tick", 0); 
+                         io.to(roomId).emit("new-round", { player: null, currentBid: 0, timer: 0, status: 'waiting_accelerated', currentPlayerIndex: auctionState.currentPlayerIndex }); // To trigger re-render on frontend waiting_accelerated branch
+                         return;
+                    } else {
+                         // Auto start for multiplayer
+                         auctionState.isAccelerated = true;
+                         const acceleratedPlayers = unsoldPlayers.map(p => ({
+                             ...p,
+                             id: p.id + '_accel',
+                             status: 'pending' 
+                         }));
+                         room.players = [...players, ...acceleratedPlayers];
+                         players = room.players;
+                         io.to(roomId).emit("players-updated", room.players);
+                         console.log(`[AUCTION] Starting Accelerated Round for ${acceleratedPlayers.length} players!`);
+                    }
                 } else {
                     auctionState.status = 'finished';
                     console.log(`[AUCTION] Finished in ${roomId}!`);
@@ -333,10 +388,10 @@ app.prepare().then(() => {
         auctionState.status = 'bidding';
         auctionState.currentBid = player.basePrice / 100;
         auctionState.highestBidderId = null;
-        auctionState.timer = auctionState.isAccelerated ? 5 : 7;
+        auctionState.timer = auctionState.isAccelerated ? 3 : 7;
         
         console.log(`[ROUND] Starting in ${roomId}: ${player.name} (Base: ${auctionState.currentBid} Cr)`);
-        io.to(roomId).emit("new-round", { player, currentBid: auctionState.currentBid, timer: auctionState.timer });
+        io.to(roomId).emit("new-round", { player, currentBid: auctionState.currentBid, timer: auctionState.timer, status: 'bidding', currentPlayerIndex: auctionState.currentPlayerIndex });
 
         const timerInterval = setInterval(async () => {
             if (auctionState.status !== 'bidding') {
@@ -381,7 +436,7 @@ app.prepare().then(() => {
                 const nextBid = auctionState.highestBidderId === null ? auctionState.currentBid : auctionState.currentBid + 0.25;
                 auctionState.currentBid = parseFloat(nextBid.toFixed(2));
                 auctionState.highestBidderId = team.id;
-                auctionState.timer = auctionState.isAccelerated ? 5 : 7;
+                auctionState.timer = auctionState.isAccelerated ? 3 : 7;
                 
                 console.log(`[BOT BID] ${team.name} -> ${auctionState.currentBid} Cr`);
                 

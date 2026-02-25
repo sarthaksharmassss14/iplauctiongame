@@ -81,16 +81,13 @@ async function getBotDecision(team, currentPlayer, currentBid, highestBidderId, 
     if (isHeavyTarget) {
         maxMultiplier = 12.0 + Math.random() * 8.0; // Pushes them anywhere from 24cr to 40cr if base price is 2cr!
     } else if (isDesperate) {
-        maxMultiplier = isStar ? 8.0 : 4.0; // Desperate to get this player (still capped!)
+        maxMultiplier = isStar ? 5.0 : 3.0; // Desperate down-tuned a bit
     } else {
-        // Normal bidding limit: Don't go crazy
-        const squadRatio = team.squad.length / 21;
-        // if they have few players, keep it low (1.2 to 2x base price) 
-        // if they have more players but aren't desperate, they still keep limits reasonable
-        let baseMultiplier = isStar ? 2.5 : 1.2;
+        // Normal bidding limit: Keep it very reasonable
+        let baseMultiplier = isStar ? 1.5 : 1.1;
         
-        // Add a slight random nudge but keep ceiling under control
-        maxMultiplier = baseMultiplier + (Math.random() * (isStar ? 1.5 : 1.0));
+        // Add a slight random nudge but keep ceiling under control (max ~2.2x for stars, 1.4x for non-stars)
+        maxMultiplier = baseMultiplier + (Math.random() * (isStar ? 0.7 : 0.3));
     }
     
     // Ensure we don't exceed budget rules though
@@ -120,19 +117,19 @@ async function getBotDecision(team, currentPlayer, currentBid, highestBidderId, 
     
     if (isHeavyTarget) {
         if (nextBidAmount <= bidValueLimit) chance = 0.95; // Fight aggressively till they hit their big limits
-        else chance = 0.05;
+        else chance = 0.0;
     } else if (isDesperate) {
         // Desperate bidding logic: up to 90% probability as long as within high limits
         if (nextBidAmount <= bidValueLimit) {
             chance = 0.90; 
         } else {
-            chance = 0.10;
+            chance = 0.0;
         }
     } else {
         // Normal bidding logic
-        if (currentBid < baseInCr) chance = 0.90; // highly likely to make the opening bid
-        else if (nextBidAmount <= bidValueLimit) chance = 0.35 + (Math.random() * 0.2); // steady low chance to drive price up reasonably
-        else chance = 0.01; // almost definitely stops if over limit
+        if (currentBid < baseInCr) chance = 0.95; // highly likely to make the opening bid
+        else if (nextBidAmount <= bidValueLimit) chance = 0.85; // high chance up to the limit so they don't seem to pause 
+        else chance = 0.0; // strictly stop if over limit
     }
 
     // Random variation
