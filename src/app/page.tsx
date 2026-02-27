@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import io from "socket.io-client";
+import { createRoom, joinRoom, placeBid, skipPlayerAction, forceStartAuction, startHostLogic, stopHostLogic } from "@/lib/firebaseAuction";
+import { rtdb } from "@/lib/firebase";
+import { ref, onValue, get } from "firebase/database";
 import { Player, Team, AuctionState } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import { Timer, Wallet, Trophy, Gavel, CheckCircle2, X, Star, Users, Zap, TrendingUp } from "lucide-react";
@@ -59,243 +61,124 @@ export default function Home() {
     }
   }, []);
 
-  // Connection timeout logic
+  const prevAuctionState = useRef<any>(null);
+
+  // Firebase Realtime Listener Effect
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    if (isJoined && pageMode !== 'lobby' && pageMode !== 'auction') {
-      timeout = setTimeout(() => {
-        setCustomAlert({ show: true, message: "CONNECTION TIMED OUT. SERVER MIGHT BE DOWN. PLEASE TRY AGAIN!" });
-        setIsJoined(false);
-        if (socketRef.current) {
-          socketRef.current.disconnect();
-          socketRef.current = null;
+    if (!roomId) return;
+
+    const roomRef = ref(rtdb, `rooms/${roomId}`);
+    const unsubscribe = onValue(roomRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      setPlayers(data.players || []);
+      setTeams(data.teams || []);
+
+      const newAuctionState = data.auctionState;
+      const oldState = prevAuctionState.current;
+
+      // Audio triggers
+      if (oldState) {
+        if (newAuctionState.highestBidderId && newAuctionState.highestBidderId !== oldState.highestBidderId) {
+          playAudioEffect('coin');
         }
-      }, 12000);
-    }
-    return () => clearTimeout(timeout);
-  }, [isJoined, pageMode]);
-
-  const socketRef = useRef<any>(null);
-
-  const teamData = [
-    { id: "team_0", name: "Chennai Super Kings", short: "CSK", color: "var(--csk-yellow)", secondary: "var(--csk-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/300px-Chennai_Super_Kings_Logo.svg.png", darkText: true },
-    { id: "team_1", name: "Mumbai Indians", short: "MI", color: "var(--mi-blue)", secondary: "var(--mi-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Mumbai_Indians_Logo.svg/300px-Mumbai_Indians_Logo.svg.png", darkText: false },
-    { id: "team_2", name: "Royal Challengers Bengaluru", short: "RCB", color: "var(--rcb-red)", secondary: "var(--rcb-secondary)", logo: "https://upload.wikimedia.org/wikipedia/commons/1/1e/%E0%A4%B0%E0%A5%89%E0%A4%AF%E0%A4%B2_%E0%A4%9A%E0%A5%88%E0%A4%B2%E0%A5%87%E0%A4%82%E0%A4%9C%E0%A4%B0%E0%A5%8D%E0%A4%B8_%E0%A4%AC%E0%A5%87%E0%A4%82%E0%A4%97%E0%A4%B2%E0%A5%81%E0%A4%B0%E0%A5%81_%E0%A4%B2%E0%A5%8B%E0%A4%97%E0%A5%8B.png", darkText: false },
-    { id: "team_3", name: "Kolkata Knight Riders", short: "KKR", color: "var(--kkr-purple)", secondary: "var(--kkr-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/300px-Kolkata_Knight_Riders_Logo.svg.png", darkText: false },
-    { id: "team_4", name: "Delhi Capitals", short: "DC", color: "var(--dc-blue)", secondary: "var(--dc-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/2/2f/Delhi_Capitals.svg", darkText: false },
-    { id: "team_5", name: "Punjab Kings", short: "PBKS", color: "var(--pbks-red)", secondary: "var(--pbks-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Punjab_Kings_Logo.svg/300px-Punjab_Kings_Logo.svg.png", darkText: false },
-    { id: "team_6", name: "Rajasthan Royals", short: "RR", color: "var(--rr-pink)", secondary: "var(--rr-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/5/5c/This_is_the_logo_for_Rajasthan_Royals%2C_a_cricket_team_playing_in_the_Indian_Premier_League_%28IPL%29.svg", darkText: false },
-    { id: "team_7", name: "Sunrisers Hyderabad", short: "SRH", color: "var(--srh-orange)", secondary: "var(--srh-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/5/51/Sunrisers_Hyderabad_Logo.svg", darkText: false },
-    { id: "team_8", name: "Lucknow Super Giants", short: "LSG", color: "var(--lsg-teal)", secondary: "var(--lsg-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/a/a9/Lucknow_Super_Giants_IPL_Logo.svg", darkText: true },
-    { id: "team_9", name: "Gujarat Titans", short: "GT", color: "var(--gt-blue)", secondary: "var(--gt-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/300px-Gujarat_Titans_Logo.svg.png", darkText: false }
-  ];
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const room = params.get('room');
-    if (room) {
-      setJoinRoomId(room.toUpperCase());
-      setPageMode('join');
-    }
-  }, []);
-
-  useEffect(() => {
-    if (pageMode === 'initial') {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-      return;
-    }
-
-    if (socketRef.current) return;
-
-    const socket = io();
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      console.log("Connected to server");
-      // consolidation: Only emit if isJoined is true AND we haven't joined a room yet
-      if (stateRef.current.isJoined) {
-        if (stateRef.current.isHost) {
-          console.log("Emitting create-room (on connect)");
-          socket.emit("create-room", { userId: stateRef.current.userName, maxHumans: stateRef.current.maxHumans });
-        } else {
-          console.log("Emitting join-room (on connect)");
-          socket.emit("join-room", {
-            roomId: stateRef.current.roomId || stateRef.current.joinRoomId,
-            userId: stateRef.current.userName,
-            teamId: stateRef.current.selectedTeamId
-          });
+        if (newAuctionState.status === 'sold' && oldState.status === 'bidding') {
+          playAudioEffect('gavel');
+        }
+        if (newAuctionState.status === 'bidding' && newAuctionState.timer > 0 && newAuctionState.timer <= 3 && oldState.timer !== newAuctionState.timer) {
+          playAudioEffect('tick');
         }
       }
 
-      if (stateRef.current.joinRoomId && stateRef.current.joinRoomId.length === 6) {
-        socket.emit("check-room", { roomId: stateRef.current.joinRoomId });
-      }
-    });
-
-    socket.on("connect_error", (err) => {
-      console.error("Connection error:", err);
-      setErrorStatus("Connection failed. Is the server running?");
-      setIsJoined(false);
-      socketRef.current = null;
-    });
-
-    socket.on("room-created", (id: string) => {
-      console.log("Room created:", id);
-      setRoomId(id);
-      socket.emit("join-room", { roomId: id, userId: stateRef.current.userName, teamId: stateRef.current.selectedTeamId });
-    });
-
-    socket.on("room-info", (data: any) => {
-      console.log("Room info received:", data);
-      setTakenTeamIds(data.takenTeamIds || []);
-    });
-
-    socket.on("assigned-team", (teamId: string) => {
-      setMyTeamId(teamId);
-      setSelectedTeamId(teamId);
-    });
-
-    socket.on("init-state", (data: any) => {
-      setPlayers(data.players);
-      setTeams(data.teams);
-      setAuctionState(data.auctionState);
-
-      sessionStorage.setItem('auctionSession', JSON.stringify({
-        roomId: stateRef.current.roomId || stateRef.current.joinRoomId,
-        userName: stateRef.current.userName,
-        teamId: stateRef.current.selectedTeamId
-      }));
-
-      // Set currentPlayer if the game is already in progress
-      if (data.auctionState.status === 'bidding' || data.auctionState.status === 'sold' || data.auctionState.status === 'unsold') {
-        const p = data.players[data.auctionState.currentPlayerIndex];
-        setCurrentPlayer(p);
+      // Update bid history safely
+      if (newAuctionState.highestBidderId && (!oldState || newAuctionState.highestBidderId !== oldState.highestBidderId || newAuctionState.currentBid !== oldState.currentBid)) {
+        const bidder = (data.teams || []).find((t: any) => t.id === newAuctionState.highestBidderId);
+        setBidHistory(prev => [{ teamName: bidder?.name, amount: newAuctionState.currentBid }, ...prev].slice(0, 5));
+      } else if ((newAuctionState.status === 'starting' && oldState?.status !== 'starting') || (newAuctionState.status === 'bidding' && newAuctionState.currentPlayerIndex !== oldState?.currentPlayerIndex)) {
+        setBidHistory([]);
       }
 
-      // Once we receive init-state, we are officially in. Stop the "isJoined" trigger.
-      setIsJoined(false);
-      if (data.auctionState.status !== 'lobby') {
+      prevAuctionState.current = newAuctionState;
+      setAuctionState(newAuctionState);
+
+      if (newAuctionState.status === 'bidding' || newAuctionState.status === 'sold' || newAuctionState.status === 'unsold') {
+        const p = (data.players || [])[newAuctionState.currentPlayerIndex];
+        setCurrentPlayer(p || null);
+      } else {
+        setCurrentPlayer(null);
+      }
+
+      if (newAuctionState.status !== 'lobby') {
         setPageMode('auction');
       } else {
         setPageMode('lobby');
       }
     });
 
-    socket.on("player-joined", (data: any) => {
-      setTeams(data.teams);
-    });
+    return () => unsubscribe();
+  }, [roomId]);
 
-    socket.on("player-left", (data: any) => {
-      setTeams(prev => prev.map(t => t.id === data.teamId ? { ...t, socketId: null } : t));
-    });
-
-    socket.on("error-msg", (msg: string) => {
-      setErrorStatus(msg);
-      setIsJoined(false);
-      setPageMode('join');
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-    });
-
-    socket.on("new-round", (data: any) => {
-      setPageMode('auction');
-      if (data.status === 'waiting_accelerated') {
-        setAuctionState((prev: any) => ({ ...prev, status: 'waiting_accelerated', currentPlayerIndex: data.currentPlayerIndex, timer: 0 }));
-        setCurrentPlayer(null);
-      } else {
-        setCurrentPlayer(data.player);
-        setAuctionState((prev: any) => ({ ...prev, currentBid: data.currentBid, timer: data.timer, status: 'bidding', highestBidderId: null, currentPlayerIndex: data.currentPlayerIndex }));
-        setBidHistory([]);
-      }
-    });
-
-    socket.on("bid-updated", (data: any) => {
-      setAuctionState((prev: any) => ({ ...prev, currentBid: data.currentBid, highestBidderId: data.highestBidderId, timer: data.timer }));
-      setTeams((currentTeams: Team[]) => {
-        const bidder = currentTeams.find(t => t.id === data.highestBidderId);
-        setBidHistory((prev: any) => [{ teamName: bidder?.name, amount: data.currentBid }, ...prev].slice(0, 5));
-        return currentTeams;
-      });
-      if (data.highestBidderId) {
-        playAudioEffect('coin');
-      }
-    });
-
-    socket.on("timer-tick", (time: number) => {
-      setAuctionState((prev: any) => ({ ...prev, timer: time }));
-      if (time > 0 && time <= 3) {
-        playAudioEffect('tick');
-      }
-    });
-
-    socket.on("player-sold", (data: any) => {
-      setAuctionState((prev: any) => ({ ...prev, status: 'sold' }));
-      setTeams(prev => prev.map(t => t.id === data.team.id ? data.team : t));
-      setPlayers(prev => prev.map(p => p.id === data.player.id ? data.player : p));
-      playAudioEffect('gavel');
-    });
-    socket.on("player-unsold", (data: any) => {
-      setAuctionState((prev: any) => ({ ...prev, status: 'unsold' }));
-      setPlayers(prev => prev.map(p => p.id === data.player.id ? { ...p, status: 'unsold' } : p));
-    });
-
-    socket.on("players-updated", (newPlayers: Player[]) => {
-      setPlayers(newPlayers);
-    });
-
-    socket.on("prompt-accelerated", (data: any) => {
-      setAuctionState((prev: any) => ({ ...prev, status: 'waiting_accelerated' }));
-      setCurrentPlayer(null);
-    });
-
-    return () => {
-      // Only disconnect if we are actually going back to start
-      // Note: During Fast Refresh, this might run. In a real app we'd handle it better,
-      // but for this lab, let's keep it simple.
-    };
-  }, [pageMode === 'initial']); // Only re-run if we explicitly go back to 'initial'
-
-  // Effect to emit check-room when room code changes
+  // Handle Room Joining after setting join IDs
   useEffect(() => {
-    if (pageMode === 'join' && joinRoomId.length === 6 && socketRef.current) {
-      socketRef.current.emit("check-room", { roomId: joinRoomId });
-    } else if (joinRoomId.length < 6) {
+    if (isJoined && roomId && pageMode === 'join' && !isHost) {
+      joinRoom(roomId, userName, selectedTeamId).then((assignedId) => {
+        if (assignedId) {
+          setMyTeamId(assignedId);
+          setSelectedTeamId(assignedId);
+        }
+      }).catch(err => {
+        console.error(err);
+        setErrorStatus("Room not found");
+        setIsJoined(false);
+        setPageMode('join');
+      });
+    }
+  }, [isJoined, roomId, isHost, pageMode, userName, selectedTeamId]);
+
+  // Host Core Logic Launcher
+  useEffect(() => {
+    if (isHost && roomId) {
+      startHostLogic(roomId, userName);
+    }
+    return () => {
+      if (isHost) stopHostLogic();
+    }
+  }, [isHost, roomId, userName]);
+
+  // Fetch room info for taken teams
+  useEffect(() => {
+    if (pageMode === 'join' && joinRoomId.length === 6) {
+      get(ref(rtdb, `rooms/${joinRoomId}`)).then(doc => {
+        if (doc.exists()) {
+          const state = doc.val();
+          const taken = state.teams.filter((t: any) => !t.isBot).map((t: any) => t.id);
+          setTakenTeamIds(taken);
+        }
+      });
+    } else {
       setTakenTeamIds([]);
     }
   }, [joinRoomId, pageMode]);
 
-  // Consolidate room joining into the connect listener and manual handles
-  useEffect(() => {
-    if (isJoined && socketRef.current && socketRef.current.connected) {
-      if (stateRef.current.isHost) {
-        console.log("Emitting create-room (manual/effect)");
-        socketRef.current.emit("create-room", {
-          userId: stateRef.current.userName,
-          maxHumans: stateRef.current.maxHumans
-        });
-      } else if (stateRef.current.roomId || stateRef.current.joinRoomId) {
-        console.log("Emitting join-room (manual/effect)");
-        socketRef.current.emit("join-room", {
-          roomId: stateRef.current.roomId || stateRef.current.joinRoomId,
-          userId: stateRef.current.userName,
-          teamId: stateRef.current.selectedTeamId
-        });
-      }
-    }
-  }, [isJoined]);
-
-  const handleCreateRoom = () => {
+  const handleCreateRoom = async () => {
     if (!userName || !selectedTeamId) {
       setCustomAlert({ show: true, message: "PLEASE ENTER YOUR NAME AND SELECT A FRANCHISE!" });
       return;
     }
-    setIsHost(true);
-    setIsJoined(true);
+    try {
+      const newRoomId = await createRoom(userName, maxHumans);
+      setRoomId(newRoomId);
+      setIsHost(true);
+      setIsJoined(true);
+      // host automatically joins as the selected team
+      await joinRoom(newRoomId, userName, selectedTeamId).then(assignedId => {
+        if (assignedId) {
+          setMyTeamId(assignedId);
+          setSelectedTeamId(assignedId);
+        }
+      });
+    } catch (err) { console.error(err); }
   };
 
   const handleJoinRoom = () => {
@@ -312,25 +195,18 @@ export default function Home() {
   };
 
   const handleBid = () => {
-    if (!currentPlayer || auctionState?.status !== 'bidding' || !socketRef.current) return;
+    if (!currentPlayer || auctionState?.status !== 'bidding') return;
     if (auctionState.highestBidderId === myTeamId) return; // Prevent self-bidding
-
-    // First bid acts as exactly the base price
-    // Next bids are incremented by 0.25
-    const incrementedBid = auctionState.highestBidderId === null ? auctionState.currentBid : auctionState.currentBid + 0.25;
-
-    socketRef.current.emit("place-bid", { roomId, teamId: myTeamId, bidAmount: parseFloat(incrementedBid.toFixed(2)) });
+    placeBid(roomId, myTeamId);
   };
 
   const handleSkip = () => {
-    if (!currentPlayer || auctionState?.status !== 'bidding' || !socketRef.current) return;
-    socketRef.current.emit("skip-player", { roomId, teamId: myTeamId });
+    if (!currentPlayer || auctionState?.status !== 'bidding') return;
+    skipPlayerAction(roomId, myTeamId);
   };
 
   const startNextAuction = () => {
-    if (socketRef.current) {
-      socketRef.current.emit("start-auction-manually", { roomId });
-    }
+    forceStartAuction(roomId);
   };
 
   const myTeam = teams.find(t => t.id === myTeamId);
