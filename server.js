@@ -70,7 +70,13 @@ app.prepare().then(() => {
         handle(req, res, parsedUrl);
     });
 
-    const io = new Server(httpServer);
+    const io = new Server(httpServer, {
+        cors: {
+            origin: "*",
+            methods: ["GET", "POST"]
+        },
+        transports: ['websocket', 'polling']
+    });
 
     io.on("connection", (socket) => {
         console.log(`[SOCKET] New connection: ${socket.id}`);
