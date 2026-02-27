@@ -97,53 +97,63 @@ export async function placeBid(roomId: string, teamId: string) {
 let hostInterval: any = null;
 let isProcessingResolve = false;
 
+let hostUnsubscribe: any = null;
+
 export function startHostLogic(roomId: string, userId: string) {
     if (hostInterval) clearInterval(hostInterval);
+    if (hostUnsubscribe) hostUnsubscribe();
 
-    // Timer Loop
-    hostInterval = setInterval(async () => {
-        const doc = await get(ref(rtdb, `rooms/${roomId}`));
-        if (!doc.exists()) return;
+    const roomRef = ref(rtdb, `rooms/${roomId}`);
+    let isProcessing = false;
 
-        let data = doc.val();
-        let { auctionState, teams, players } = data;
+    // 1. INSTANT REACTION LISTENER (Push-based like Socket.io)
+    hostUnsubscribe = onValue(roomRef, async (snapshot) => {
+        if (isProcessing) return;
+        const data = snapshot.val();
+        if (!data || data.auctionState.status !== 'bidding') return;
 
-        if (auctionState.status === 'starting') {
-            if (auctionState.timer > 0) {
-                await update(ref(rtdb, `rooms/${roomId}/auctionState`), { timer: auctionState.timer - 1 });
-            } else {
-                await startNewRound(roomId, data);
+        const { auctionState, teams, players } = data;
+        const player = players[auctionState.currentPlayerIndex];
+
+        // If human bid, bots should react IMMEDIATELY
+        const lastBidder = teams.find((t: any) => t.id === auctionState.highestBidderId);
+
+        if (lastBidder && !lastBidder.isBot) {
+            isProcessing = true;
+            const eligibleBots = teams.filter((t: any) => t.isBot && t.id !== auctionState.highestBidderId);
+            if (eligibleBots.length > 0) {
+                const bot = eligibleBots[Math.floor(Math.random() * eligibleBots.length)];
+                const shouldBid = await getBotDecision(bot, player, auctionState.currentBid, auctionState.highestBidderId, players);
+                if (shouldBid) {
+                    await placeBid(roomId, bot.id);
+                }
             }
+            isProcessing = false;
         }
-        else if (auctionState.status === 'bidding') {
-            const player = players[auctionState.currentPlayerIndex];
+    });
 
-            if (auctionState.timer <= 0) {
-                if (!isProcessingResolve) {
-                    isProcessingResolve = true;
-                    await resolveRound(roomId, data);
-                    isProcessingResolve = false;
-                }
-            } else {
-                // Bots thinking
-                if (auctionState.timer % 2 === 0) {
-                    const potentialBots = teams.filter((t: any) => t.isBot && t.id !== auctionState.highestBidderId).sort(() => Math.random() - 0.5).slice(0, 1);
-                    for (const team of potentialBots) {
-                        const shouldBid = await getBotDecision(team, player, auctionState.currentBid, auctionState.highestBidderId, players);
-                        if (shouldBid) {
-                            await placeBid(roomId, team.id);
-                            break;
-                        }
-                    }
-                }
+    // 2. TIMER TICKER (Dedicated for clock only)
+    hostInterval = setInterval(async () => {
+        const doc = await get(ref(rtdb, `rooms/${roomId}/auctionState`));
+        if (!doc.exists()) return;
+        const state = doc.val();
 
-                // Tick
-                await runTransaction(ref(rtdb, `rooms/${roomId}/auctionState`), (state) => {
-                    if (state && state.status === 'bidding' && state.timer > 0) {
-                        state.timer--;
-                    }
-                    return state;
+        if (state.status === 'starting' || state.status === 'bidding') {
+            if (state.timer > 0) {
+                await runTransaction(ref(rtdb, `rooms/${roomId}/auctionState/timer`), (t) => {
+                    if (t > 0) return t - 1;
+                    return t;
                 });
+            } else {
+                const fullDoc = await get(ref(rtdb, `rooms/${roomId}`));
+                if (fullDoc.exists()) {
+                    const fullData = fullDoc.val();
+                    if (fullData.auctionState.timer <= 0 && !isProcessingResolve) {
+                        isProcessingResolve = true;
+                        await resolveRound(roomId, fullData);
+                        isProcessingResolve = false;
+                    }
+                }
             }
         }
     }, 1000);
@@ -151,6 +161,7 @@ export function startHostLogic(roomId: string, userId: string) {
 
 export function stopHostLogic() {
     if (hostInterval) clearInterval(hostInterval);
+    if (hostUnsubscribe) hostUnsubscribe();
 }
 
 export async function forceStartAuction(roomId: string) {
@@ -278,18 +289,63 @@ export async function skipPlayerAction(roomId: string, teamId: string) {
     }
 
     const player = players[auctionState.currentPlayerIndex];
-    const bots = teams.filter((t: any) => t.isBot && t.squad && t.squad.length < 21 && t.budget > 1.0 && (!player.isForeign || t.foreignCount < 8));
+    if (!player) return;
 
-    if (bots.length > 0) {
-        const finalBid = Math.max(auctionState.currentBid, Math.floor((2.0 + Math.random() * 5.0) * 4) / 4);
-        const randomBot = bots[Math.floor(Math.random() * bots.length)];
+    // Determine rating with fallback
+    let r = player.rating;
+    if (r === undefined || r === null) {
+        const bp = Number(player.basePrice) || 0;
+        if (bp >= 200) r = 4;
+        else if (bp >= 100) r = 3;
+        else r = 2;
+    }
+    const rating = r || 2;
+    const baseInCr = (player.basePrice || 20) / 100;
 
+    // Calculate potential price based on rating
+    let targetPrice = baseInCr;
+    if (rating >= 4) {
+        targetPrice = 8.0 + (Math.random() * 12.0); // 8-20 CR
+    } else if (rating === 3) {
+        targetPrice = baseInCr + (Math.random() * (8.0 - baseInCr)); // Base to 8 CR
+    } else {
+        targetPrice = Math.random() < 0.5 ? baseInCr : baseInCr + 0.25; // Base or Base + 0.25
+    }
+
+    // Round to 0.25 increments
+    targetPrice = Math.floor(targetPrice * 4) / 4;
+
+    // Filter bots who can actually afford this price
+    const eligibleBots = teams.filter((t: any) =>
+        t.isBot &&
+        t.budget >= targetPrice &&
+        (t.squad || []).length < 21 &&
+        (!player.isForeign || (t.foreignCount || 0) < 8)
+    );
+
+    if (eligibleBots.length > 0) {
+        const randomBot = eligibleBots[Math.floor(Math.random() * eligibleBots.length)];
         await update(ref(rtdb, `rooms/${roomId}/auctionState`), {
-            currentBid: finalBid,
+            currentBid: targetPrice,
             highestBidderId: randomBot.id,
             timer: 0 // forces end
         });
     } else {
-        await update(ref(rtdb, `rooms/${roomId}/auctionState`), { timer: 0 }); // unsold
+        // If no bot can afford the premium price, try base price with any bot
+        const fallbackBots = teams.filter((t: any) =>
+            t.isBot &&
+            t.budget >= baseInCr &&
+            (t.squad || []).length < 21
+        );
+        if (fallbackBots.length > 0) {
+            const randomBot = fallbackBots[Math.floor(Math.random() * fallbackBots.length)];
+            await update(ref(rtdb, `rooms/${roomId}/auctionState`), {
+                currentBid: baseInCr,
+                highestBidderId: randomBot.id,
+                timer: 0
+            });
+        } else {
+            await update(ref(rtdb, `rooms/${roomId}/auctionState`), { timer: 0 }); // unsold
+        }
     }
 }

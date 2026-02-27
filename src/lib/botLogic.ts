@@ -6,24 +6,23 @@ export async function getBotDecision(team: any, currentPlayer: any, currentBid: 
     const baseInCr = currentPlayer.basePrice / 100;
     const nextBidAmount = highestBidderId === null ? baseInCr : currentBid + 0.25;
 
-    const minSlotsRemaining = Math.max(0, 15 - team.squad.length);
-    const reservedBudget = Math.max(0, minSlotsRemaining - 1) * 0.3;
+    const squad = team.squad || [];
+    const minSlotsRemaining = Math.max(0, 15 - squad.length);
+    const reservedBudget = Math.max(0, minSlotsRemaining - 1) * 0.3; // Reserve 30L per remaining slot
     const maxAvailableToBid = team.budget - reservedBudget;
 
     if (nextBidAmount > maxAvailableToBid) return false;
-    if (team.squad.length >= 21) return false;
-    if (currentPlayer.isForeign && team.foreignCount >= 8) return false;
+    if (squad.length >= 21) return false; // Max squad size
+    if (currentPlayer.isForeign && (team.foreignCount || 0) >= 8) return false; // Foreign limit
 
-    const isStar = baseInCr >= 1.0;
-
+    // 1. ASSESSMENT OF TEAM NEEDS (Desperation)
     let isDesperate = false;
-    if (allPlayers && team.squad) {
-        let wkCount = 0;
-        let bowlerCount = 0;
-        let allRounderCount = 0;
-        let batsmanCount = 0;
+    let roleGap = false;
 
-        const squadPlayers = team.squad.map((id: number) => allPlayers.find(p => p.id === id)).filter(Boolean);
+    if (allPlayers) {
+        let wkCount = 0, bowlerCount = 0, allRounderCount = 0, batsmanCount = 0;
+        const squadPlayers = squad.map((id: number) => allPlayers.find(p => p.id === id)).filter(Boolean);
+
         for (const p of squadPlayers) {
             if (p.role === "Wicketkeeper") wkCount++;
             else if (p.role === "Bowler") bowlerCount++;
@@ -31,73 +30,92 @@ export async function getBotDecision(team: any, currentPlayer: any, currentBid: 
             else if (p.role === "Batsman") batsmanCount++;
         }
 
-        const squadSize = team.squad.length;
-        let criticalRole = false;
+        // Check for role gaps
+        if (currentPlayer.role === "Wicketkeeper" && wkCount < 1) roleGap = true;
+        if (currentPlayer.role === "Batsman" && batsmanCount < 5) roleGap = true;
+        if (currentPlayer.role === "Bowler" && bowlerCount < 5) roleGap = true;
+        if (currentPlayer.role === "All-rounder" && allRounderCount < 3) roleGap = true;
 
-        if (currentPlayer.role === "Wicketkeeper" && wkCount === 0) criticalRole = true;
-        if (currentPlayer.role === "Bowler" && bowlerCount < 2) criticalRole = true;
-        if (currentPlayer.role === "All-rounder" && allRounderCount < 2) criticalRole = true;
-        if (currentPlayer.role === "Batsman" && batsmanCount < 3) criticalRole = true;
-
-        if (criticalRole && squadSize >= 7) {
-            isDesperate = true;
-        }
+        // Desperation increases as squad fills up without key roles
+        if (roleGap && squad.length >= 10) isDesperate = true;
+        if (roleGap && squad.length >= 15) isDesperate = true; // High priority
     }
 
-    const heavyBiddersList = [
-        "virat kohli", "dhoni", "rohit sharma", "bumrah", "buttler",
-        "hardik", "rashid", "kl rahul", "russell", "jadeja", "jaiswal",
-        "travis head", "starc", "maxwell", "boult", "hazelwood", "hazlewood", "sam curran"
-    ];
-    const isHeavyTarget = heavyBiddersList.some(name => currentPlayer.name.toLowerCase().includes(name));
+    // 2. VALUATION BASED ON RATING & PRICE
+    // Ratings are 2, 3, 4, 5
+    let r = currentPlayer.rating;
+    if (r === undefined || r === null) {
+        const bp = Number(currentPlayer.basePrice) || 0;
+        if (bp >= 200) r = 4;
+        else if (bp >= 100) r = 3;
+        else r = 2;
+    }
+    const finalRating = r || 2;
+    let valuationMultiplier = 1.0;
 
-    const skipChance = isHeavyTarget ? 0.0 : (isStar ? 0.05 : 0.15);
-    if (!isDesperate && Math.random() < skipChance) return false;
-
-    let maxMultiplier = 1.0;
-    if (isHeavyTarget) {
-        maxMultiplier = 12.0 + Math.random() * 8.0;
-    } else if (isDesperate) {
-        maxMultiplier = isStar ? 5.0 : 3.0;
-    } else {
-        let baseMultiplier = isStar ? 1.5 : 1.1;
-        maxMultiplier = baseMultiplier + (Math.random() * (isStar ? 0.7 : 0.3));
+    switch (finalRating) {
+        case 5: // Elite
+            valuationMultiplier = 6.0 + (Math.random() * 4.0); // 6x - 10x
+            break;
+        case 4: // Star
+            valuationMultiplier = 4.0 + (Math.random() * 2.5); // 4x - 6.5x
+            break;
+        case 3: // Solid
+            valuationMultiplier = 2.0 + (Math.random() * 2.0); // 2x - 4x
+            break;
+        default: // Backup (2 star or less)
+            valuationMultiplier = 1.1 + (Math.random() * 0.9); // 1.1x - 2x
+            break;
     }
 
-    const bidValueLimit = Math.min(baseInCr * maxMultiplier, maxAvailableToBid);
+    // Boost multiplier if desperate
+    if (isDesperate) valuationMultiplier *= 1.4;
+    else if (roleGap) valuationMultiplier *= 1.2;
 
-    // AI LLM API Call
-    if (nextBidAmount > 5.0 && Math.random() < 0.1) {
+    // Cap at a reasonable absolute value if too high
+    let bidValueLimit = baseInCr * valuationMultiplier;
+
+    // Safety check: Budget constraint
+    bidValueLimit = Math.min(bidValueLimit, maxAvailableToBid);
+
+    // AI LLM API Call for high-value decisions
+    if (nextBidAmount > 5.0 && Math.random() < 0.15) {
         try {
             const res = await fetch('/api/bot-decision', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     teamName: team.name, budget: team.budget,
-                    playerName: currentPlayer.name, playerRole: currentPlayer.role,
+                    playerName: currentPlayer.name, playerRole: currentPlayer.role, playerRating: finalRating,
                     baseInCr, currentBid, bidValueLimit, nextBidAmount
                 })
             });
             const data = await res.json();
-            if (data.decision === false) return false; // AI says no
+            if (data.decision === false) return false;
         } catch (error) {
-            console.error("[BOT LOGIC] Fetch Error:", error);
+            console.error("[BOT LOGIC] AI Decision Error:", error);
         }
     }
 
-    // Fallback Simple Logic 
-    let chance = 0.4;
+    // 3. FINAL DECISION CHANCE
+    let chance = 0.5;
 
-    if (isHeavyTarget) {
-        if (nextBidAmount <= bidValueLimit) chance = 0.95;
-        else chance = 0.0;
-    } else if (isDesperate) {
-        if (nextBidAmount <= bidValueLimit) chance = 0.90;
-        else chance = 0.0;
+    if (nextBidAmount > bidValueLimit) {
+        chance = 0.0; // Strict limit based on valuation
     } else {
-        if (currentBid < baseInCr) chance = 0.95;
-        else if (nextBidAmount <= bidValueLimit) chance = 0.85;
-        else chance = 0.0;
+        // High interest for base price
+        if (highestBidderId === null) chance = 0.98;
+        else {
+            // Decision probability based on how close to limit
+            const proximity = nextBidAmount / bidValueLimit;
+            if (proximity < 0.5) chance = 0.9;
+            else if (proximity < 0.8) chance = 0.8;
+            else chance = 0.6;
+
+            // Extra aggressive for 5-star or Desperate roles
+            if (finalRating >= 4) chance += 0.1;
+            if (isDesperate) chance += 0.1;
+        }
     }
 
     return Math.random() < chance;

@@ -816,7 +816,7 @@ export default function Home() {
                   <img src={sheetTeamInfo?.logo} style={{ width: '80px', height: '80px', objectFit: 'contain' }} />
                   <div>
                     <h2 style={{ fontSize: '2.5rem', fontWeight: 950, color: sheetTeamInfo?.darkText ? 'black' : 'white' }}>{sheetTeam.name}</h2>
-                    <p style={{ fontWeight: 800, color: sheetTeamInfo?.darkText ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)' }}>SQUAD SIZE: {sheetTeam.squad.length} / 21</p>
+                    <p style={{ fontWeight: 800, color: sheetTeamInfo?.darkText ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)' }}>SQUAD SIZE: {sheetTeam.squad?.length || 0} / 21</p>
                   </div>
                 </div>
                 <button onClick={() => setTeamSheetId(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', padding: '12px', cursor: 'pointer' }}>
@@ -824,7 +824,7 @@ export default function Home() {
                 </button>
               </div>
               <div style={{ padding: '32px', overflowY: 'auto', flex: 1, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-                {sheetTeam.squad.length > 0 ? sheetTeam.squad.map(pid => {
+                {(sheetTeam.squad || []).length > 0 ? sheetTeam.squad.map(pid => {
                   const p = players.find(player => player.id === pid);
                   return p && (
                     <div key={pid} className="glass" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)' }}>
@@ -866,9 +866,9 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-          <Stat value={`${myTeam?.budget.toFixed(2)} Cr`} label="PURSE" color={myTeam?.color} />
-          <Stat value={`${myTeam?.squad.length}/21`} label="SQUAD" color={myTeam?.color} />
-          <Stat value={`${myTeam?.foreignCount}/8`} label="OVERSEAS" color={myTeam?.color} />
+          <Stat value={`${(myTeam?.budget || 0).toFixed(2)} Cr`} label="PURSE" color={myTeam?.color} />
+          <Stat value={`${myTeam?.squad?.length || 0}/21`} label="SQUAD" color={myTeam?.color} />
+          <Stat value={`${myTeam?.foreignCount || 0}/8`} label="OVERSEAS" color={myTeam?.color} />
         </div>
       </header>
 
@@ -910,13 +910,30 @@ export default function Home() {
                     </div>
                     <h1 style={{ fontSize: 'clamp(2rem, 3.5vw, 4rem)', fontWeight: 950, lineHeight: 1.1, marginBottom: '32px', letterSpacing: '-2px' }}>{currentPlayer.name}</h1>
 
-                    <div className="glass" style={{ padding: '30px', background: 'rgba(255,255,255,0.02)', marginBottom: '40px', borderRadius: '30px' }}>
-                      <h3 style={{ fontSize: '11px', fontWeight: 950, color: 'var(--accent)', marginBottom: '24px', letterSpacing: '4px' }}>ARENA STATISTICS</h3>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-                        <MiniStat label="MATCHES" value={currentPlayer.stats?.matches} icon={<Users size={14} />} />
-                        {currentPlayer.stats?.runs && <MiniStat label="RUNS" value={currentPlayer.stats?.runs} icon={<TrendingUp size={14} />} />}
-                        {currentPlayer.stats?.wickets && <MiniStat label="WKTS" value={currentPlayer.stats?.wickets} icon={<Zap size={14} />} />}
-                        <MiniStat label="STR RATE" value={currentPlayer.stats?.sr} icon={<Star size={14} />} />
+                    <div className="glass" style={{ padding: '20px 30px', background: 'rgba(255,255,255,0.02)', marginBottom: '40px', borderRadius: '32px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ fontSize: '10px', fontWeight: 950, color: '#94a3b8', letterSpacing: '3px' }}>RATINGS</h3>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          {(() => {
+                            let r = currentPlayer.rating;
+                            if (r === undefined || r === null) {
+                              const bp = Number(currentPlayer.basePrice) || 0;
+                              if (bp >= 200) r = 4;
+                              else if (bp >= 100) r = 3;
+                              else r = 2;
+                            }
+                            const finalRating = r || 2;
+                            return [...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                size={20}
+                                fill={i < finalRating ? "var(--accent)" : "none"}
+                                color={i < finalRating ? "var(--accent)" : "rgba(255,255,255,0.1)"}
+                                style={{ filter: i < finalRating ? 'drop-shadow(0 0 8px var(--accent))' : 'none' }}
+                              />
+                            ));
+                          })()}
+                        </div>
                       </div>
                     </div>
 
@@ -1197,7 +1214,7 @@ export default function Home() {
 
                       <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 2 }}>
                         <span style={{ fontWeight: 950, fontSize: '14px', color: tInfo?.darkText ? 'black' : 'white' }}>{t.name}</span>
-                        <span style={{ fontSize: '10px', color: tInfo?.darkText ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)' }}>{t.squad.length} Players</span>
+                        <span style={{ fontSize: '10px', color: tInfo?.darkText ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)' }}>{(t.squad || []).length} Players</span>
                       </div>
                       <div style={{ textAlign: 'right', position: 'relative', zIndex: 2 }}>
                         <span style={{ fontWeight: 950, color: tInfo?.darkText ? 'black' : 'white', fontSize: '1.2rem' }}>{t.budget.toFixed(1)}</span>
@@ -1209,7 +1226,7 @@ export default function Home() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {myTeam?.squad.map(id => {
+                {(myTeam?.squad || []).map(id => {
                   const p = players.find(p => p.id === id);
                   return p && (
                     <div key={id} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px' }}>
@@ -1262,7 +1279,7 @@ function PostAuctionScreen({ teams, players, teamData }: any) {
     setAnalyzingTeamId(t.id);
     setAnalysisResult(null);
     try {
-      const squadPlayers = t.squad.map((id: number) => players.find((p: any) => p.id === id)).filter(Boolean);
+      const squadPlayers = (t.squad || []).map((id: number) => players.find((p: any) => p.id === id)).filter(Boolean);
       const res = await fetch('/api/analyze-team', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1280,7 +1297,7 @@ function PostAuctionScreen({ teams, players, teamData }: any) {
 
   // Score calculation
   const scoredTeams = teams.map((team: any) => {
-    let score = team.squad.length * 2.0; // Up to ~42 points for 21 players
+    let score = (team.squad || []).length * 2.0; // Up to ~42 points for 21 players
 
     let wkCount = 0;
     let batCount = 0;
@@ -1288,7 +1305,7 @@ function PostAuctionScreen({ teams, players, teamData }: any) {
     let arCount = 0;
     let starCount = 0;
 
-    team.squad.forEach((playerId: number) => {
+    (team.squad || []).forEach((playerId: number) => {
       const p = players.find((p: any) => p.id === playerId);
       if (p) {
         if (p.role === "Wicketkeeper") wkCount++;
@@ -1319,7 +1336,7 @@ function PostAuctionScreen({ teams, players, teamData }: any) {
     score = Math.min(100, score);
 
     // Penalty for failing minimum squad requirement
-    if (team.squad.length < 15) {
+    if ((team.squad || []).length < 15) {
       score = 0;
     }
 
@@ -1352,7 +1369,7 @@ function PostAuctionScreen({ teams, players, teamData }: any) {
             <img src={t.info?.logo} style={{ width: '50px', height: '50px', objectFit: 'contain', margin: '0 20px' }} />
             <div style={{ flex: 1, textAlign: 'left' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 950, color: 'white' }}>{t.name}</h3>
-              <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 800 }}>{t.squad.length} Players</p>
+              <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 800 }}>{(t.squad || []).length} Players</p>
             </div>
             <div style={{ textAlign: 'center' }}>
               <span style={{ fontSize: '2rem', fontWeight: 950, color: 'var(--accent)' }}>{t.score} ⭐</span>

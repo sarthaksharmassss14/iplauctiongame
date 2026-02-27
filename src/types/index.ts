@@ -9,6 +9,7 @@ export interface Player {
     soldPrice: number;
     teamId: string | null;
     image?: string;
+    rating?: number;
     stats?: {
         matches: number;
         runs?: number;
