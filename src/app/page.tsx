@@ -110,7 +110,7 @@ export default function Home() {
 
     if (socketRef.current) return;
 
-    const socket = io();
+    const socket = io({ transports: ['websocket'] });
     socketRef.current = socket;
 
     socket.on("connect", () => {
