@@ -2,6 +2,7 @@ services:
   - type: web
     name: ipl-auction-game
     runtime: node
+    plan: free
     buildCommand: npm install && npm run build
     startCommand: node server.js
     envVars:
