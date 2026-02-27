@@ -49,12 +49,14 @@ export default function Home() {
         try {
           const session = JSON.parse(sessionStr);
           if (session.roomId && session.userName && session.teamId) {
-            setUserName(session.userName);
-            setJoinRoomId(session.roomId);
-            setRoomId(session.roomId);
-            setSelectedTeamId(session.teamId);
-            setIsJoined(true);
-            setPageMode('join');
+            setTimeout(() => {
+              setUserName(session.userName);
+              setJoinRoomId(session.roomId);
+              setRoomId(session.roomId);
+              setSelectedTeamId(session.teamId);
+              setIsJoined(true);
+              setPageMode('join');
+            }, 0);
           }
         } catch (err) { }
       }
@@ -170,7 +172,7 @@ export default function Home() {
         }
       });
     } else {
-      setTakenTeamIds([]);
+      setTimeout(() => setTakenTeamIds([]), 0);
     }
   }, [joinRoomId, pageMode]);
 
