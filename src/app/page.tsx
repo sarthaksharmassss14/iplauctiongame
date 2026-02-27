@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createRoom, joinRoom, placeBid, skipPlayerAction, forceStartAuction, startHostLogic, stopHostLogic } from "@/lib/firebaseAuction";
+import { createRoom, joinRoom, placeBid, skipPlayerAction, forceStartAuction, startHostLogic, stopHostLogic, forceStartAccelerated, endAuction } from "@/lib/firebaseAuction";
 import { rtdb } from "@/lib/firebase";
 import { ref, onValue, get } from "firebase/database";
 import { Player, Team, AuctionState } from "@/types";
@@ -60,6 +60,19 @@ export default function Home() {
       }
     }
   }, []);
+
+  const teamData = [
+    { id: "team_0", name: "Chennai Super Kings", short: "CSK", color: "var(--csk-yellow)", secondary: "var(--csk-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/300px-Chennai_Super_Kings_Logo.svg.png", darkText: true },
+    { id: "team_1", name: "Mumbai Indians", short: "MI", color: "var(--mi-blue)", secondary: "var(--mi-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/c/cd/Mumbai_Indians_Logo.svg/300px-Mumbai_Indians_Logo.svg.png", darkText: false },
+    { id: "team_2", name: "Royal Challengers Bengaluru", short: "RCB", color: "var(--rcb-red)", secondary: "var(--rcb-secondary)", logo: "https://upload.wikimedia.org/wikipedia/commons/1/1e/%E0%A4%B0%E0%A5%89%E0%A4%AF%E0%A4%B2_%E0%A4%9A%E0%A5%88%E0%A4%B2%E0%A5%87%E0%A4%82%E0%A4%9C%E0%A4%B0%E0%A5%8D%E0%A4%B8_%E0%A4%AC%E0%A5%87%E0%A4%82%E0%A4%97%E0%A4%B2%E0%A5%81%E0%A4%B0%E0%A5%81_%E0%A4%B2%E0%A5%8B%E0%A4%97%E0%A5%8B.png", darkText: false },
+    { id: "team_3", name: "Kolkata Knight Riders", short: "KKR", color: "var(--kkr-purple)", secondary: "var(--kkr-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/4/4c/Kolkata_Knight_Riders_Logo.svg/300px-Kolkata_Knight_Riders_Logo.svg.png", darkText: false },
+    { id: "team_4", name: "Delhi Capitals", short: "DC", color: "var(--dc-blue)", secondary: "var(--dc-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/2/2f/Delhi_Capitals.svg", darkText: false },
+    { id: "team_5", name: "Punjab Kings", short: "PBKS", color: "var(--pbks-red)", secondary: "var(--pbks-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/d/d4/Punjab_Kings_Logo.svg/300px-Punjab_Kings_Logo.svg.png", darkText: false },
+    { id: "team_6", name: "Rajasthan Royals", short: "RR", color: "var(--rr-pink)", secondary: "var(--rr-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/5/5c/This_is_the_logo_for_Rajasthan_Royals%2C_a_cricket_team_playing_in_the_Indian_Premier_League_%28IPL%29.svg", darkText: false },
+    { id: "team_7", name: "Sunrisers Hyderabad", short: "SRH", color: "var(--srh-orange)", secondary: "var(--srh-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/5/51/Sunrisers_Hyderabad_Logo.svg", darkText: false },
+    { id: "team_8", name: "Lucknow Super Giants", short: "LSG", color: "var(--lsg-teal)", secondary: "var(--lsg-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/a/a9/Lucknow_Super_Giants_IPL_Logo.svg", darkText: true },
+    { id: "team_9", name: "Gujarat Titans", short: "GT", color: "var(--gt-blue)", secondary: "var(--gt-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/300px-Gujarat_Titans_Logo.svg.png", darkText: false }
+  ];
 
   const prevAuctionState = useRef<any>(null);
 
@@ -1091,14 +1104,14 @@ export default function Home() {
 
                       <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
                         <button
-                          onClick={() => socketRef.current?.emit("start-accelerated", { roomId })}
+                          onClick={() => forceStartAccelerated(roomId)}
                           className="btn-primary glimmer-btn"
                           style={{ padding: '20px 40px', fontSize: '1.2rem', minWidth: '250px' }}
                         >
                           YES, BRING UNSOLD PLAYERS
                         </button>
                         <button
-                          onClick={() => socketRef.current?.emit("end-auction", { roomId })}
+                          onClick={() => endAuction(roomId)}
                           className="btn-secondary glass"
                           style={{ padding: '20px 40px', fontSize: '1.2rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', minWidth: '250px', cursor: 'pointer' }}
                         >

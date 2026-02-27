@@ -160,7 +160,11 @@ export async function forceStartAuction(roomId: string) {
     });
 }
 
-export async function forceStartAccelerated(roomId: string, playersData: any[]) {
+export async function endAuction(roomId: string) {
+    await update(ref(rtdb, `rooms/${roomId}/auctionState`), { status: 'finished' });
+}
+
+export async function forceStartAccelerated(roomId: string) {
     await runTransaction(ref(rtdb, `rooms/${roomId}`), (room) => {
         if (!room) return room;
         const unsoldPlayers = room.players.filter((p: any) => p.status === 'unsold' && !p.id.toString().includes('_accel'));
@@ -201,7 +205,7 @@ async function startNewRound(roomId: string, data: any) {
                     return;
                 } else {
                     // Auto accel
-                    forceStartAccelerated(roomId, players);
+                    forceStartAccelerated(roomId);
                     return;
                 }
             } else {
