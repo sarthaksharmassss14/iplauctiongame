@@ -364,40 +364,83 @@ export async function skipPlayerAction(roomId: string) {
 
         const preferredTeamId = homeTeamMapping[player.name];
 
-        // Skip Multipliers (Stay below 18 Cr)
-        let targetPrice: number | null = baseInCr;
-        if (r >= 5) targetPrice = Math.min(18, baseInCr * (2.5 + Math.random() * 1.5));
-        else if (r >= 4) targetPrice = Math.min(12, baseInCr * (1.8 + Math.random() * 1.2));
-        else if (r === 3) targetPrice = baseInCr * (1.1 + Math.random() * 0.5);
-        else targetPrice = Math.random() < 0.6 ? null : baseInCr;
-
-        const finalP = targetPrice ? Math.floor(targetPrice * 4) / 4 : null;
-
-        const isTeamEligible = (t: Team, price: number) => {
-            if (!t.isBot || t.id === auctionState.hostId) return false; // Rule: skip shouldn't go to human
-            const squadSize = (t.squad || []).length;
-            const slotsToMin = Math.max(0, 15 - squadSize);
-            const reserved = Math.max(0, slotsToMin - 1) * 0.25;
-            return (t.budget - reserved) >= price && squadSize < 21;
-        };
-
         let selectedBot: Team | undefined;
-        if (preferredTeamId) {
-            const pTeam = teams.find(t => t.id === preferredTeamId);
-            if (pTeam && isTeamEligible(pTeam, finalP || baseInCr)) selectedBot = pTeam;
+        let actualP = 0;
+
+        // DECISION LOGIC
+        if (auctionState.highestBidderId && auctionState.highestBidderId !== auctionState.hostId) {
+            // 1. If a bot is already winning, award to them at current bid
+            selectedBot = teams.find(t => t.id === auctionState.highestBidderId);
+            if (selectedBot) actualP = auctionState.currentBid;
         }
 
-        if (!selectedBot && finalP) {
-            const possibleBots = teams.filter(t => isTeamEligible(t, finalP));
-            if (possibleBots.length > 0) {
-                possibleBots.sort((a, b) => b.budget - a.budget);
-                selectedBot = possibleBots[0];
+        if (!selectedBot) {
+            const isStar = !!preferredTeamId;
+            const hasBid = !!auctionState.highestBidderId;
+
+            // Rule: If no bid and not a star -> go Unsold
+            if (!hasBid && !isStar) {
+                selectedBot = undefined;
+            } else {
+                // Find suitable bots first to determine purse-based damping
+                const getBotStats = (bot: Team) => {
+                    const squadSize = (bot.squad || []).length;
+                    const slotsToMin = Math.max(0, 15 - squadSize);
+                    const reserved = Math.max(0, slotsToMin - 1) * 0.30;
+                    return { available: bot.budget - reserved, health: Math.min(1.2, bot.budget / 45) };
+                };
+
+                const pTeam = preferredTeamId ? teams.find(t => t.id === preferredTeamId && t.isBot) : null;
+                const bestGenericBot = [...teams]
+                    .filter(t => t.isBot && t.id !== auctionState.hostId && (t.squad || []).length < 25)
+                    .sort((a, b) => b.budget - a.budget)[0];
+
+                const candidateBot = pTeam || bestGenericBot;
+                const stats = candidateBot ? getBotStats(candidateBot) : { available: 0, health: 1 };
+
+                // DYNAMIC TARGET PRICE (Purse-Aware)
+                let targetPrice = baseInCr;
+                if (r >= 5) targetPrice = baseInCr * (4.5 + Math.random() * 3.0);
+                else if (r >= 4) targetPrice = baseInCr + (1.5 + Math.random() * 2.5);
+                else if (r === 3) targetPrice = baseInCr + (0.25 + Math.random() * 1.5);
+
+                // Damping for Budget Protection
+                targetPrice *= stats.health;
+
+                // Dynamic Increment for Outbidding
+                let dynamicInc = 0.25;
+                if (r >= 5) dynamicInc = 1.5 + Math.random() * 2.0;
+                else if (r >= 4) dynamicInc = 0.75 + Math.random() * 1.25;
+
+                const minRequired = hasBid ? (auctionState.currentBid + dynamicInc) : baseInCr;
+                let finalP = Math.max(targetPrice, minRequired);
+                finalP = Math.floor(Math.min(18, finalP) * 4) / 4;
+
+                const isTeamEligible = (t: Team, price: number) => {
+                    if (!t.isBot || t.id === auctionState.hostId) return false;
+                    const { available } = getBotStats(t);
+                    return available >= price;
+                };
+
+                // FINAL ASSIGNMENT
+                if (pTeam && isTeamEligible(pTeam, finalP)) {
+                    selectedBot = pTeam;
+                    actualP = finalP;
+                } else if (bestGenericBot && isTeamEligible(bestGenericBot, finalP)) {
+                    selectedBot = bestGenericBot;
+                    actualP = finalP;
+                } else if (candidateBot) {
+                    // EMERGENCY BARGAIN: Force to richest bot at a price they CAN afford (min required)
+                    selectedBot = candidateBot;
+                    actualP = Math.max(baseInCr, auctionState.currentBid);
+                    // Ensure we don't put them in negative if possible
+                    if (selectedBot.budget < actualP) actualP = Math.max(0.20, selectedBot.budget);
+                }
             }
         }
 
-        if (selectedBot && finalP) {
-            const actualP = finalP;
-            selectedBot.budget -= actualP;
+        if (selectedBot && actualP >= 0) {
+            selectedBot.budget = Number((selectedBot.budget - actualP).toFixed(2));
             if (!selectedBot.squad) selectedBot.squad = [];
             selectedBot.squad.push(player.id);
             if (player.isForeign) selectedBot.foreignCount = (selectedBot.foreignCount || 0) + 1;
