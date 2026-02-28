@@ -37,14 +37,14 @@ export interface Team {
 }
 
 export interface AuctionState {
+    status: 'lobby' | 'starting' | 'bidding' | 'sold' | 'unsold' | 'finished' | 'waiting_accelerated';
     currentPlayerIndex: number;
     currentBid: number;
     highestBidderId: string | null;
     timer: number;
-    status: 'idle' | 'bidding' | 'sold' | 'unsold' | 'finished' | 'lobby' | 'starting' | 'waiting_accelerated';
     joinedPlayers: number;
-    roomId?: string;
-    maxHumans?: number;
-    hostId?: string;
+    maxHumans: number;
+    hostId: string;
     isAccelerated: boolean;
+    skipInProgress?: boolean;
 }

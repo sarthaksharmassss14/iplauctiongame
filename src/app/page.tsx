@@ -23,7 +23,7 @@ export default function Home() {
   const [teamSheetId, setTeamSheetId] = useState<string | null>(null);
 
   // Lobby State
-  const [pageMode, setPageMode] = useState<'initial' | 'host' | 'join' | 'lobby' | 'auction'>('initial');
+  const [pageMode, setPageMode] = useState<'initial' | 'host' | 'join' | 'lobby' | 'auction' | 'loading'>('loading');
   const [roomId, setRoomId] = useState("");
   const [maxHumans, setMaxHumans] = useState(1);
   const [isHost, setIsHost] = useState(false);
@@ -49,19 +49,33 @@ export default function Home() {
         try {
           const session = JSON.parse(sessionStr);
           if (session.roomId && session.userName && session.teamId) {
-            setTimeout(() => {
-              setUserName(session.userName);
-              setJoinRoomId(session.roomId);
-              setRoomId(session.roomId);
-              setSelectedTeamId(session.teamId);
-              setIsJoined(true);
-              setPageMode('join');
-            }, 0);
+            setUserName(session.userName);
+            setJoinRoomId(session.roomId);
+            setRoomId(session.roomId);
+            setSelectedTeamId(session.teamId);
+            setMyTeamId(session.teamId);
+            setIsJoined(true);
+            setIsHost(!!session.isHost);
+            // We stay in 'loading' mode until Firebase onValue returns the actual state
+          } else {
+            setPageMode('initial');
           }
-        } catch (err) { }
+        } catch (err) {
+          setPageMode('initial');
+        }
+      } else {
+        setPageMode('initial');
       }
     }
   }, []);
+
+  // Save session whenever it changes
+  useEffect(() => {
+    if (isJoined && roomId && userName && selectedTeamId) {
+      const session = { roomId, userName, teamId: selectedTeamId, isHost };
+      sessionStorage.setItem('auctionSession', JSON.stringify(session));
+    }
+  }, [isJoined, roomId, userName, selectedTeamId, isHost]);
 
   const teamData = [
     { id: "team_0", name: "Chennai Super Kings", short: "CSK", color: "var(--csk-yellow)", secondary: "var(--csk-secondary)", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/2/2b/Chennai_Super_Kings_Logo.svg/300px-Chennai_Super_Kings_Logo.svg.png", darkText: true },
@@ -263,6 +277,20 @@ export default function Home() {
   };
   const { upcomingPlayers, pastPlayers } = computePlayerSplits();
 
+  if (pageMode === 'loading') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#050505' }}>
+        <motion.img
+          animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+          src="/ipl.png"
+          style={{ height: '120px', width: 'auto', filter: 'drop-shadow(0 0 20px var(--accent))' }}
+        />
+        <p style={{ marginTop: '20px', color: 'var(--accent)', fontWeight: 900, letterSpacing: '4px', fontSize: '10px' }}>RESTORING ARENA...</p>
+      </div>
+    );
+  }
+
   if (pageMode !== 'auction') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'transparent', padding: '60px 20px', position: 'relative' }}>
@@ -349,6 +377,7 @@ export default function Home() {
                       setShowLeaveConfirm(false);
                       setPageMode('initial');
                       setIsJoined(false);
+                      setRoomId("");
                       setJoinRoomId("");
                       setIsHost(false);
                       setErrorStatus("");
@@ -482,8 +511,10 @@ export default function Home() {
                 <div className="glass" style={{ width: '100%', maxWidth: '650px', padding: '70px 35px 25px', marginBottom: '30px', position: 'relative' }}>
                   <button
                     onClick={() => {
+                      sessionStorage.removeItem('auctionSession');
                       setPageMode('initial');
                       setIsJoined(false);
+                      setRoomId("");
                       setJoinRoomId("");
                       setIsHost(false);
                       setErrorStatus("");
@@ -708,9 +739,11 @@ export default function Home() {
                 </button>
                 <button
                   onClick={() => {
+                    sessionStorage.removeItem('auctionSession');
                     setShowLeaveConfirm(false);
                     setPageMode('initial');
                     setIsJoined(false);
+                    setRoomId("");
                     setJoinRoomId("");
                     setIsHost(false);
                     setErrorStatus("");

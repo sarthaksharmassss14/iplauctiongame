@@ -7,17 +7,17 @@ export async function getBotDecision(team: Team, currentPlayer: Player, currentB
     // 1. BASIC CONSTRAINTS
     const squad = team.squad || [];
     const squadSize = squad.length;
-    const maxSquadSize = 21;
-    const minSquadSize = 15;
+    const maxSquadSize = 21; // Standard IPL max
+    const minSquadSize = 15; // Target squad size
 
-    if (squadSize >= maxSquadSize) return false;
+    if (squadSize >= 21) return false; // Bot soft cap at 21
 
-    const baseInCr = (currentPlayer.basePrice || 20) / 100;
+    const baseInCr = (Number(currentPlayer.basePrice) || 20) / 100;
     const nextBidAmount = highestBidderId === null ? baseInCr : currentBid + 0.25;
 
-    // Reserve 0.2Cr (20 Lakhs) for each remaining slot to reach minimum squad size
+    // Minimum buffer: 0.20Cr per remaining slot to reach 15 players (more aggressive utilization)
     const slotsToMin = Math.max(0, minSquadSize - squadSize);
-    const reservedBudget = Math.max(0, slotsToMin - 1) * 0.2;
+    const reservedBudget = Math.max(0, slotsToMin - 1) * 0.20;
     const maxAvailableToBid = (team.budget || 0) - reservedBudget;
 
     if (nextBidAmount > maxAvailableToBid) return false;
@@ -34,73 +34,78 @@ export async function getBotDecision(team: Team, currentPlayer: Player, currentB
         else if (p.role === "Batsman") batsmanCount++;
     }
 
-    const targets = { "Wicketkeeper": 2, "Batsman": 6, "Bowler": 7, "All-rounder": 5 };
+    const targets: Record<string, number> = { "Wicketkeeper": 2, "Batsman": 6, "Bowler": 6, "All-rounder": 4 };
     const currentRoleCount = (currentPlayer.role === "Wicketkeeper" ? wkCount :
         currentPlayer.role === "Bowler" ? bowlerCount :
             currentPlayer.role === "All-rounder" ? allRounderCount : batsmanCount);
 
     const targetRoleCount = targets[currentPlayer.role as keyof typeof targets] || 5;
 
+    // If already have enough depth, bots should be very passive
+    if (currentRoleCount >= targetRoleCount + 2) return false;
+
     let requirementScore = 1.0;
-    if (currentRoleCount < 1) requirementScore = 2.5;
-    else if (currentRoleCount < targetRoleCount) requirementScore = 1.0 + (targetRoleCount - currentRoleCount) * 0.3;
-    else requirementScore = 0.8;
+    if (currentRoleCount === 0) requirementScore = 2.5; // High priority for first player of role
+    else if (currentRoleCount < targetRoleCount) requirementScore = 1.5; // Core building
+    else requirementScore = 0.4; // Depth only
 
-    // 3. PURSE INTENSITY
-    const remainingSlots = Math.max(1, maxSquadSize - squadSize);
-    const utilizationFactor = Math.min(3.0, Math.max(1.0, (team.budget / remainingSlots) / 1.0));
+    // 3. PURSE UTILIZATION (Aim for 95-100% spend)
+    const remainingSlots = Math.max(1, 18 - squadSize); // Target 18 slots total for budget calculation
+    const avgBudgetPerSlot = team.budget / remainingSlots;
+    let utilizationFactor = Math.min(2.5, Math.max(0.6, avgBudgetPerSlot / 1.5));
 
-    // 4. VALUATION LOGIC
-    let r = currentPlayer.rating;
-    if (!r) {
-        if (baseInCr >= 2.0) r = 5;
-        else if (baseInCr >= 1.0) r = 4;
-        else if (baseInCr >= 0.5) r = 3;
-        else r = 2;
+    // 4. VALUATION LOGIC (STRICT 18 CR CAP)
+    let rating = currentPlayer.rating || 2;
+    if (!currentPlayer.rating) {
+        if (baseInCr >= 2.0) rating = 5;
+        else if (baseInCr >= 1.0) rating = 4;
+        else rating = 2;
     }
-    const rating = r || 2;
 
-    const baseMultipliers = { 5: 10.0, 4: 7.0, 3: 4.0, 2: 1.5 };
-    let valuationMultiplier = baseMultipliers[rating as keyof typeof baseMultipliers] || 2.0;
+    // Base Multipliers for 100 Cr Budget
+    const baseMultipliers: Record<number, number> = { 5: 8.5, 4: 5.5, 3: 3.5, 2: 1.5 };
+    let valuationMultiplier = baseMultipliers[rating] || 2.0;
 
-    valuationMultiplier *= requirementScore;
-    valuationMultiplier *= utilizationFactor;
+    // Scaling Factor to use 95-100% of purse
+    const finalMultiplier = valuationMultiplier * requirementScore * utilizationFactor;
 
     // 5. HARD CAPS & REALISM
-    let bidValueLimit = baseInCr * valuationMultiplier;
+    let bidValueLimit = baseInCr * finalMultiplier;
 
-    // Rule: No player should EVER exceed 30 Cr in a 100 Cr budget game
-    const ABSOLUTE_MAX_BID = 28.0;
+    // USER RULE: Absolutely NO player over 18 CR
+    const ABSOLUTE_MAX_BID = 18.0;
 
-    // Rule: Don't spend more than ~35% of starting budget on ONE player early on
-    const budgetSafetyCap = team.budget * 0.4;
+    // Rating-based caps for balance
+    const ratingCaps: Record<number, number> = { 5: 18.0, 4: 12.0, 3: 7.0, 2: 3.5 };
+    const hardCap = Math.min(ABSOLUTE_MAX_BID, ratingCaps[rating] || 5.0);
 
-    bidValueLimit = Math.min(bidValueLimit, ABSOLUTE_MAX_BID);
+    bidValueLimit = Math.min(bidValueLimit, hardCap);
 
-    // Only allow exceeding the safety cap if we have a huge budget and only a few slots left
-    if (remainingSlots > 5) {
-        bidValueLimit = Math.min(bidValueLimit, budgetSafetyCap);
+    // Budget Protection: Be aggressive early, conservative only if very low on purse
+    const safetyCap = team.budget * 0.5; // Allow up to 50% of REMAINING budget on a top player
+    if (remainingSlots > 10) {
+        bidValueLimit = Math.min(bidValueLimit, safetyCap);
     }
-
-    if (rating === 5) bidValueLimit = Math.max(bidValueLimit, 8.0);
-    if (rating === 4) bidValueLimit = Math.max(bidValueLimit, 5.0);
 
     bidValueLimit = Math.min(bidValueLimit, maxAvailableToBid);
 
     // 6. FINAL DECISION
-    if (nextBidAmount > bidValueLimit) {
-        return false;
+    if (nextBidAmount > bidValueLimit) return false;
+
+    // Probability logic
+    let bidProbability = 0.85;
+    const pricePressure = nextBidAmount / bidValueLimit;
+
+    if (highestBidderId === null) {
+        bidProbability = 0.98;
+    } else {
+        if (pricePressure > 0.9) bidProbability = 0.2;
+        else if (pricePressure > 0.7) bidProbability = 0.5;
+        else bidProbability = 0.8;
     }
 
-    let bidProbability = 0.7;
-    if (highestBidderId === null) bidProbability = 0.99;
-    else {
-        const proximity = nextBidAmount / bidValueLimit;
-        bidProbability = proximity < 0.5 ? 0.9 : proximity < 0.8 ? 0.7 : 0.4;
-    }
+    // If desperate for role, increase probability
+    if (currentRoleCount === 0 && pricePressure < 0.95) bidProbability = 0.95;
 
-    if (requirementScore > 1.8) bidProbability += 0.2;
     return Math.random() < bidProbability;
 }
-
-

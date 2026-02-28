@@ -123,8 +123,9 @@ export async function placeBid(roomId: string, teamId: string) {
     const room = roomDoc.val();
     const players = room.players || [];
 
-    await runTransaction(ref(rtdb, `rooms/${roomId}/auctionState`), (state) => {
+    await runTransaction(ref(rtdb, `rooms/${roomId}/auctionState`), (state: AuctionState) => {
         if (!state || state.status !== 'bidding') return state;
+        if (state.skipInProgress) return state; // PREVENT BIDS DURING SKIP
         if (state.highestBidderId === teamId) return state;
 
         const player = players[state.currentPlayerIndex];
@@ -278,8 +279,24 @@ async function startNewRound(roomId: string, data: { auctionState: AuctionState,
         status: 'bidding',
         currentBid: player.basePrice / 100,
         highestBidderId: null,
-        timer: auctionState.isAccelerated ? 4 : 7
+        timer: auctionState.isAccelerated ? 4 : 7,
+        skipInProgress: false // ALWAYS RESET ON NEW ROUND
     });
+}
+
+async function moveToNextPlayerAfterDelay(roomId: string) {
+    setTimeout(async () => {
+        const f = await get(ref(rtdb, `rooms/${roomId}`));
+        if (f.exists()) {
+            const freshData = f.val();
+            const nextIndex = freshData.auctionState.currentPlayerIndex + 1;
+            // Sync the index back to DB first
+            await update(ref(rtdb, `rooms/${roomId}/auctionState`), { currentPlayerIndex: nextIndex });
+            // Now start the fresh round
+            freshData.auctionState.currentPlayerIndex = nextIndex;
+            await startNewRound(roomId, freshData);
+        }
+    }, 2000);
 }
 
 async function resolveRound(roomId: string, data: { auctionState: AuctionState, teams: Team[], players: Player[] }) {
@@ -287,6 +304,7 @@ async function resolveRound(roomId: string, data: { auctionState: AuctionState, 
     const teams = data.teams;
     const players = data.players;
     if (auctionState.status === 'starting') { await startNewRound(roomId, data); return; }
+
     const player = players[auctionState.currentPlayerIndex];
     if (auctionState.highestBidderId) {
         const winner = teams.find((t: Team) => t.id === auctionState.highestBidderId);
@@ -295,55 +313,114 @@ async function resolveRound(roomId: string, data: { auctionState: AuctionState, 
             if (!winner.squad) winner.squad = [];
             winner.squad.push(player.id);
             if (player.isForeign) winner.foreignCount = (winner.foreignCount || 0) + 1;
-            player.status = 'sold'; player.soldPrice = auctionState.currentBid; player.teamId = winner.id;
+            player.status = 'sold';
+            player.soldPrice = auctionState.currentBid;
+            player.teamId = winner.id;
+            auctionState.status = 'sold';
         }
-    } else { player.status = 'unsold'; }
-    auctionState.currentPlayerIndex++;
+    } else {
+        player.status = 'unsold';
+        auctionState.status = 'unsold';
+    }
+
+    // Update status but STAY on current player for 2 seconds
     await update(ref(rtdb, `rooms/${roomId}`), { auctionState, teams, players });
-    setTimeout(async () => {
-        const f = await get(ref(rtdb, `rooms/${roomId}`));
-        if (f.exists()) await startNewRound(roomId, f.val());
-    }, 2000);
+    await moveToNextPlayerAfterDelay(roomId);
 }
 
 export async function skipPlayerAction(roomId: string) {
-    console.log(`[SKIP] Forced Auto-Assign triggered for room: ${roomId}`);
-    const doc = await get(ref(rtdb, `rooms/${roomId}`));
-    if (!doc.exists()) return;
-    const data = doc.val();
-    const auctionState: AuctionState = data.auctionState;
-    const teams: Team[] = data.teams;
-    const players: Player[] = data.players;
+    console.log(`[SKIP] Atomic Skip Triggered: ${roomId}`);
 
-    const player = players[auctionState.currentPlayerIndex];
-    if (!player || auctionState.status !== 'bidding') return;
+    let shouldTriggerNext = false;
 
-    // RULE: Calculate ENFORCED high multiplier price
-    const r = player.rating || 2;
-    const baseInCr = (Number(player.basePrice) || 20) / 100;
-    let targetPrice: number | null = baseInCr;
+    await runTransaction(ref(rtdb, `rooms/${roomId}`), (room) => {
+        if (!room) return room;
+        const auctionState: AuctionState = room.auctionState;
+        const players: Player[] = room.players;
+        const teams: Team[] = room.teams;
 
-    if (r >= 4) targetPrice = baseInCr * (7 + Math.random() * 3);
-    else if (r === 3) targetPrice = baseInCr * (3 + Math.random() * 3);
-    else targetPrice = Math.random() < 0.5 ? null : baseInCr + 0.5;
+        if (auctionState.status !== 'bidding' || auctionState.skipInProgress) return room;
 
-    if (targetPrice === null) {
-        await runTransaction(ref(rtdb, `rooms/${roomId}/auctionState`), (s) => { if (s) { s.timer = 0; s.highestBidderId = null; } return s; });
-        return;
-    }
+        auctionState.skipInProgress = true;
+        const player = players[auctionState.currentPlayerIndex];
+        if (!player) { auctionState.skipInProgress = false; return room; }
 
-    const finalP = Math.floor(Math.min(25, targetPrice) * 4) / 4;
-    // Ensure we outbid current highest bidder if any
-    const winningP = Math.max(finalP, (auctionState.highestBidderId ? (auctionState.currentBid + 0.25) : baseInCr));
+        const r = player.rating || 2;
+        const baseInCr = (Number(player.basePrice) || 20) / 100;
 
-    const bots = teams.filter((t: Team) => t.isBot && t.budget >= baseInCr && (t.squad || []).length < 21);
-    if (bots.length > 0) {
-        bots.sort((a: Team, b: Team) => b.budget - a.budget);
-        const bot = bots[0];
-        const actualP = Math.floor(Math.min(winningP, bot.budget) * 4) / 4;
-        console.log(`[SKIP] Sold ${player.name} to ${bot.name} for ${actualP} Cr`);
-        await runTransaction(ref(rtdb, `rooms/${roomId}/auctionState`), (s) => { if (s) { s.currentBid = actualP; s.highestBidderId = bot.id; s.timer = 0; } return s; });
-    } else {
-        await runTransaction(ref(rtdb, `rooms/${roomId}/auctionState`), (s) => { if (s) { s.timer = 0; s.highestBidderId = null; } return s; });
+        // Custom Mapping for Star Players
+        const homeTeamMapping: Record<string, string> = {
+            "Sanju Samson": "team_4", "Jos Buttler": "team_4", "Yashasvi Jaiswal": "team_4", // RR
+            "MS Dhoni": "team_0", "Ravindra Jadeja": "team_0", "Ruturaj Gaikwad": "team_0", // CSK
+            "Virat Kohli": "team_6", // RCB
+            "Rohit Sharma": "team_1", "Suryakumar Yadav": "team_1", "Jasprit Bumrah": "team_1", "Hardik Pandya": "team_1", // MI
+            "Rashid Khan": "team_3", "Shubman Gill": "team_3", // GT
+            "Rishabh Pant": "team_5", // LSG
+            "Shreyas Iyer": "team_2", "Sunil Narine": "team_2", "Andre Russell": "team_2", // KKR
+            "Abhishek Sharma": "team_9", "Pat Cummins": "team_9", "Travis Head": "team_9", // SRH
+            "Arshdeep Singh": "team_7", // PBKS
+            "KL Rahul": "team_8", "Axar Patel": "team_8" // DC
+        };
+
+        const preferredTeamId = homeTeamMapping[player.name];
+
+        // Skip Multipliers (Stay below 18 Cr)
+        let targetPrice: number | null = baseInCr;
+        if (r >= 5) targetPrice = Math.min(18, baseInCr * (2.5 + Math.random() * 1.5));
+        else if (r >= 4) targetPrice = Math.min(12, baseInCr * (1.8 + Math.random() * 1.2));
+        else if (r === 3) targetPrice = baseInCr * (1.1 + Math.random() * 0.5);
+        else targetPrice = Math.random() < 0.6 ? null : baseInCr;
+
+        const finalP = targetPrice ? Math.floor(targetPrice * 4) / 4 : null;
+
+        const isTeamEligible = (t: Team, price: number) => {
+            if (!t.isBot || t.id === auctionState.hostId) return false; // Rule: skip shouldn't go to human
+            const squadSize = (t.squad || []).length;
+            const slotsToMin = Math.max(0, 15 - squadSize);
+            const reserved = Math.max(0, slotsToMin - 1) * 0.25;
+            return (t.budget - reserved) >= price && squadSize < 21;
+        };
+
+        let selectedBot: Team | undefined;
+        if (preferredTeamId) {
+            const pTeam = teams.find(t => t.id === preferredTeamId);
+            if (pTeam && isTeamEligible(pTeam, finalP || baseInCr)) selectedBot = pTeam;
+        }
+
+        if (!selectedBot && finalP) {
+            const possibleBots = teams.filter(t => isTeamEligible(t, finalP));
+            if (possibleBots.length > 0) {
+                possibleBots.sort((a, b) => b.budget - a.budget);
+                selectedBot = possibleBots[0];
+            }
+        }
+
+        if (selectedBot && finalP) {
+            const actualP = finalP;
+            selectedBot.budget -= actualP;
+            if (!selectedBot.squad) selectedBot.squad = [];
+            selectedBot.squad.push(player.id);
+            if (player.isForeign) selectedBot.foreignCount = (selectedBot.foreignCount || 0) + 1;
+
+            player.status = 'sold';
+            player.soldPrice = actualP;
+            player.teamId = selectedBot.id;
+
+            auctionState.highestBidderId = selectedBot.id;
+            auctionState.currentBid = actualP;
+            auctionState.status = 'sold';
+            auctionState.timer = 0;
+        } else {
+            player.status = 'unsold';
+            auctionState.status = 'unsold';
+            auctionState.timer = 0;
+        }
+
+        shouldTriggerNext = true;
+        return room;
+    });
+
+    if (shouldTriggerNext) {
+        await moveToNextPlayerAfterDelay(roomId);
     }
 }
