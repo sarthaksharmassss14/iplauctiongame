@@ -5,7 +5,7 @@ export interface Player {
     country: string;
     basePrice: number;
     isForeign: boolean;
-    status: 'sold' | 'unsold' | 'current' | 'upcoming';
+    status: 'sold' | 'unsold' | 'current' | 'upcoming' | 'pending';
     soldPrice: number;
     teamId: string | null;
     image?: string;
@@ -33,16 +33,18 @@ export interface Team {
     logo?: string;
     short?: string;
     darkText?: boolean;
+    socketId: string | null;
 }
 
 export interface AuctionState {
-    currentPlayerId: number | null;
+    currentPlayerIndex: number;
     currentBid: number;
     highestBidderId: string | null;
     timer: number;
-    status: 'idle' | 'bidding' | 'sold' | 'unsold' | 'finished' | 'lobby';
+    status: 'idle' | 'bidding' | 'sold' | 'unsold' | 'finished' | 'lobby' | 'starting' | 'waiting_accelerated';
     joinedPlayers: number;
     roomId?: string;
     maxHumans?: number;
     hostId?: string;
+    isAccelerated: boolean;
 }

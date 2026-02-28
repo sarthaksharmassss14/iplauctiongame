@@ -4,7 +4,7 @@ export const playAudioEffect = (type: 'coin' | 'gavel' | 'tick') => {
     if (typeof window === 'undefined') return;
 
     try {
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const AudioContextClass = window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
         if (!AudioContextClass) return;
 
         // Use a single instance if possible, or create a new one to ensure it plays 
@@ -59,7 +59,9 @@ export const playAudioEffect = (type: 'coin' | 'gavel' | 'tick') => {
             osc.start();
             osc.stop(ctx.currentTime + 0.2);
         }
-    } catch (error) {
-        console.warn("Audio play failed:", error);
+    } catch (error: unknown) {
+        if (error instanceof Error) {
+            console.warn("Audio play failed:", error.message);
+        }
     }
 };

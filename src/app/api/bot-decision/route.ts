@@ -1,13 +1,26 @@
 import { NextResponse } from 'next/server';
 import { Groq } from 'groq-sdk';
 
+// Global cache to avoid hitting Groq limits for the same bid range
+const decisionCache = new Map<string, { decision: boolean, timestamp: number }>();
+const CACHE_TTL = 1000 * 60 * 5; // 5 minutes
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { teamName, budget, playerName, playerRole, baseInCr, currentBid, bidValueLimit, nextBidAmount } = body;
 
+        // Use a cache key based on player and current bid (rounded to nearest 1 Cr to increase cache hits)
+        const cacheKey = `${playerName}_${Math.floor(nextBidAmount)}`;
+        const cached = decisionCache.get(cacheKey);
+
+        if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+            console.log(`[AI] Cache Hit for ${playerName} at ${nextBidAmount}`);
+            return NextResponse.json({ decision: cached.decision });
+        }
+
         if (!process.env.GROQ_API_KEY) {
-            return NextResponse.json({ decision: false }); // Fallback
+            return NextResponse.json({ decision: false });
         }
 
         const groq = new Groq({
@@ -21,7 +34,12 @@ export async function POST(req: Request) {
         });
 
         const response = chatCompletion.choices[0].message.content?.trim().toUpperCase() || "NO";
-        return NextResponse.json({ decision: response.includes("YES") });
+        const decision = response.includes("YES");
+
+        // Cache the result
+        decisionCache.set(cacheKey, { decision, timestamp: Date.now() });
+
+        return NextResponse.json({ decision });
 
     } catch (error: any) {
         console.error("Bot Groq Error:", error.message);

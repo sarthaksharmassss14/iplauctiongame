@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createRoom, joinRoom, placeBid, skipPlayerAction, forceStartAuction, startHostLogic, stopHostLogic, forceStartAccelerated, endAuction } from "@/lib/firebaseAuction";
+import { createRoom, joinRoom, placeBid, skipPlayerAction, forceStartAuction, startHostLogic, stopHostLogic, forceStartAccelerated, endAuction, autoAssignRemainingSlots, debugSkipToEnd } from "@/lib/firebaseAuction";
 import { rtdb } from "@/lib/firebase";
 import { ref, onValue, get } from "firebase/database";
 import { Player, Team, AuctionState } from "@/types";
@@ -117,6 +117,11 @@ export default function Home() {
       prevAuctionState.current = newAuctionState;
       setAuctionState(newAuctionState);
 
+      // Restore host status if match
+      if (newAuctionState.hostId === userName && !isHost) {
+        setIsHost(true);
+      }
+
       if (newAuctionState.status === 'bidding' || newAuctionState.status === 'sold' || newAuctionState.status === 'unsold') {
         const p = (data.players || [])[newAuctionState.currentPlayerIndex];
         setCurrentPlayer(p || null);
@@ -154,7 +159,7 @@ export default function Home() {
   // Host Core Logic Launcher
   useEffect(() => {
     if (isHost && roomId) {
-      startHostLogic(roomId, userName);
+      startHostLogic(roomId);
     }
     return () => {
       if (isHost) stopHostLogic();
@@ -212,12 +217,24 @@ export default function Home() {
   const handleBid = () => {
     if (!currentPlayer || auctionState?.status !== 'bidding') return;
     if (auctionState.highestBidderId === myTeamId) return; // Prevent self-bidding
+
+    // Strict safety checks
+    const nextBidCost = auctionState.highestBidderId === null ? (currentPlayer.basePrice / 100) : auctionState.currentBid + 0.25;
+    const hasMaxSquad = (myTeam?.squad?.length || 0) >= 21;
+    const hasMaxForeign = currentPlayer.isForeign && (myTeam?.foreignCount || 0) >= 8;
+    const hasNoMoney = (myTeam?.budget || 0) < nextBidCost;
+
+    if (hasMaxSquad || hasMaxForeign || hasNoMoney) {
+      console.warn("[BID DENIED] Constraints not met", { hasMaxSquad, hasMaxForeign, hasNoMoney });
+      return;
+    }
+
     placeBid(roomId, myTeamId);
   };
 
   const handleSkip = () => {
     if (!currentPlayer || auctionState?.status !== 'bidding') return;
-    skipPlayerAction(roomId, myTeamId);
+    skipPlayerAction(roomId);
   };
 
   const startNextAuction = () => {
@@ -1011,6 +1028,15 @@ export default function Home() {
                       </button>
                     </div>
 
+                    {isHost && (
+                      <button
+                        onClick={() => debugSkipToEnd(roomId)}
+                        style={{ width: '100%', marginTop: '10px', padding: '10px', fontSize: '10px', opacity: 0.3, background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', cursor: 'pointer' }}
+                      >
+                        DEBUG: JUMP TO END (TEST REPORT)
+                      </button>
+                    )}
+
                     {teams.filter(t => !t.isBot).length === 1 && (
                       <button
                         onClick={handleSkip}
@@ -1130,11 +1156,11 @@ export default function Home() {
                           YES, BRING UNSOLD PLAYERS
                         </button>
                         <button
-                          onClick={() => endAuction(roomId)}
+                          onClick={() => autoAssignRemainingSlots(roomId)}
                           className="btn-secondary glass"
                           style={{ padding: '20px 40px', fontSize: '1.2rem', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', minWidth: '250px', cursor: 'pointer' }}
                         >
-                          NO, END AUCTION NOW
+                          NO, AUTO-FILL SQUAD (MIN 15)
                         </button>
                       </div>
                     </motion.div>
@@ -1278,71 +1304,220 @@ function PostAuctionScreen({ teams, players, teamData }: any) {
   const handleAnalyzeTeam = async (t: any) => {
     setAnalyzingTeamId(t.id);
     setAnalysisResult(null);
-    try {
-      const squadPlayers = (t.squad || []).map((id: number) => players.find((p: any) => p.id === id)).filter(Boolean);
-      const res = await fetch('/api/analyze-team', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ teamName: t.info?.name || t.name, players: squadPlayers })
-      });
-      const data = await res.json();
-      setAnalysisResult({ team: t, data });
-    } catch (e) {
-      console.error(e);
-      alert("Failed to analyze team");
-    } finally {
-      setAnalyzingTeamId(null);
+
+    // Simulate AI thinking
+    await new Promise(r => setTimeout(r, 1500));
+
+    const squadPlayers = (t.squad || []).map((id: number) => players.find((p: any) => p.id === id)).filter(Boolean);
+
+    // Internal Analysis Engine (Simulating Advanced AI Reasoning)
+    const wkCount = squadPlayers.filter((p: any) => p.role === "Wicketkeeper").length;
+    const batCount = squadPlayers.filter((p: any) => p.role === "Batsman").length;
+    const bowlCount = squadPlayers.filter((p: any) => p.role === "Bowler").length;
+    const arCount = squadPlayers.filter((p: any) => p.role === "All-rounder").length;
+    const foreignCount = squadPlayers.filter((p: any) => p.isForeign).length;
+    const starCount = squadPlayers.filter((p: any) => p.rating === 5).length;
+    const highRatedCount = squadPlayers.filter((p: any) => p.rating >= 4).length;
+
+    // Determine Best 11 with 4-Foreigner Limit and Proper Batting Order
+
+    // Sort logic for realistic order: Batsman -> WK -> AR -> Bowler
+    const rolePriority: Record<string, number> = { "Batsman": 1, "Wicketkeeper": 2, "All-rounder": 3, "Bowler": 4 };
+
+    let best11: string[] = [];
+    let foreignIn11 = 0;
+
+    // First, pick the absolute best players by rating, but keep track of foreign count
+    const candidates = [...squadPlayers].sort((a: any, b: any) => (b.rating || 2) - (a.rating || 2));
+    const selectedPlayers: any[] = [];
+
+    for (const p of candidates) {
+      if (selectedPlayers.length >= 11) break;
+
+      if (p.isForeign) {
+        if (foreignIn11 < 4) {
+          selectedPlayers.push(p);
+          foreignIn11++;
+        }
+      } else {
+        selectedPlayers.push(p);
+      }
     }
+
+    // Now sort the selected 11 by role for the display order
+    best11 = selectedPlayers
+      .sort((a, b) => {
+        if (rolePriority[a.role] !== rolePriority[b.role]) {
+          return rolePriority[a.role] - rolePriority[b.role];
+        }
+        return (b.rating || 0) - (a.rating || 0);
+      })
+      .map(p => p.name);
+
+    const strengthLibrary = [
+      {
+        check: batCount >= 7,
+        texts: ["Incredible batting depth with multiple finishers.", "Terrifying top-order capable of high-scoring games.", "Deep batting lineup that can chase any target."]
+      },
+      {
+        check: bowlCount >= 7,
+        texts: ["Gunslinging bowling attack with varieties for every phase.", "Elite pace battery combined with tactical spin.", "One of the most balanced bowling units in the tournament."]
+      },
+      {
+        check: arCount >= 5,
+        texts: ["Swiss army knife squad with versatile all-rounders.", "Extreme tactical flexibility due to elite dual-role players.", "Massive depth in both departments thanks to high-quality ARs."]
+      },
+      {
+        check: starCount >= 2,
+        texts: ["Core of marquee 5-star players can win matches single-handedly.", "Elite star power provides massive commercial and on-field impact.", "Has the 'X-Factor' with multiple legendary tier players."]
+      },
+      {
+        check: highRatedCount >= 6,
+        texts: ["Extremely high average quality across the primary XI.", "Clinical squad building with focus on 4-star and 5-star talents.", "Technically superior roster with minimal weak links."]
+      },
+      {
+        check: foreignCount >= 7,
+        texts: ["Strategic use of overseas slots for premium international experience.", "Solid global core that brings high-pressure T20 exposure.", "World-class foreign contingent strengthens every department."]
+      },
+      {
+        check: wkCount >= 2,
+        texts: ["Safe hands with excellent wicketkeeping coverage.", "Smart backup options for the keeper role ensure stability.", "Reliable behind the stumps with competitive keeping talent."]
+      }
+    ];
+
+    const weaknessLibrary = [
+      {
+        check: wkCount < 1,
+        texts: ["No specialist wicketkeeper (Grave tactical oversight).", "Lacks a designated man behind the stumps.", "Wicketkeeping vacuum might cost close matches."]
+      },
+      {
+        check: batCount < 5,
+        texts: ["Thin batting lineup prone to collapses.", "Lack of batting depth might hurt in high-scoring chases.", "Top-heavy batting with a fragile lower order."]
+      },
+      {
+        check: bowlCount < 5,
+        texts: ["Bowling stocks look dangerously low.", "Might struggle to defend totals due to lack of specialist bowlers.", "Bowling attack lacks teeth in the middle overs."]
+      },
+      {
+        check: arCount < 2,
+        texts: ["Lacks balance - very few players provide dual value.", "Tactical rigidity due to absence of versatile all-rounders.", "The squad feels strictly compartmentalized."]
+      },
+      {
+        check: foreignCount < 4,
+        texts: ["Under-utilization of world-class overseas talent.", "Local-heavy squad might lack high-intensity international exposure.", "Missed opportunity to bolster the XI with foreign stars."]
+      },
+      {
+        check: squadPlayers.length < 15,
+        texts: ["Squad size too small - zero injury cover.", "Extremely risky roster with no depth for a long tournament.", "Playing with fire by having the absolute minimum squad size."]
+      },
+      {
+        check: starCount === 0 && highRatedCount < 3,
+        texts: ["Lacks a genuine match-winner at the elite level.", "A 'Plain' squad that might struggle against superstar setups.", "Reliant on collective effort rather than individual brilliance."]
+      }
+    ];
+
+    const getAnalysis = (library: any[]) => {
+      const results: string[] = [];
+      const usedIndices = new Set();
+
+      library.forEach(item => {
+        if (item.check) {
+          const randomText = item.texts[Math.floor(Math.random() * item.texts.length)];
+          results.push(randomText);
+        }
+      });
+
+      // Shuffle results to ensure different ordering
+      return results.sort(() => Math.random() - 0.5);
+    };
+
+    const strengths = getAnalysis(strengthLibrary);
+    const weaknesses = getAnalysis(weaknessLibrary);
+
+    if (strengths.length === 0) strengths.push("Solid foundation with consistent role-players.");
+    if (weaknesses.length === 0) weaknesses.push("Professionally constructed roster with no glaring holes.");
+
+    setAnalysisResult({
+      team: t,
+      data: {
+        best11,
+        strengths: strengths.slice(0, 3),
+        weaknesses: weaknesses.slice(0, 3)
+      }
+    });
+
+    setAnalyzingTeamId(null);
   };
 
-  // Score calculation
+  // Advanced Score calculation (Granular AI Evaluation)
   const scoredTeams = teams.map((team: any) => {
-    let score = (team.squad || []).length * 2.0; // Up to ~42 points for 21 players
-
+    let squadQuality = 0;
     let wkCount = 0;
     let batCount = 0;
     let bowlCount = 0;
     let arCount = 0;
-    let starCount = 0;
+    let foreignCount = 0;
 
-    (team.squad || []).forEach((playerId: number) => {
+    const squadIds = team.squad || [];
+    squadIds.forEach((playerId: number) => {
       const p = players.find((p: any) => p.id === playerId);
       if (p) {
+        // Quality factor: Give more weight to high rated players
+        const pRating = p.rating || 2;
+        squadQuality += (pRating * 5); // 5-star = 25pts, 1-star = 5pts
+
         if (p.role === "Wicketkeeper") wkCount++;
         else if (p.role === "Batsman") batCount++;
         else if (p.role === "Bowler") bowlCount++;
         else if (p.role === "All-rounder") arCount++;
 
-        if (p.basePrice >= 100) starCount++; // Star player (>= 1.0Cr base)
+        if (p.isForeign) foreignCount++;
       }
     });
 
-    // Balance points
-    if (wkCount >= 1) score += 5;
-    if (wkCount >= 2) score += 4;
+    // Normalize squad quality based on size (average rating factor)
+    const avgQuality = squadIds.length > 0 ? (squadQuality / squadIds.length) : 0;
+    let rawScore = (avgQuality * 3) + (squadIds.length * 0.5); // Focus on quality + depth
 
-    if (batCount >= 5) score += 10;
-    else if (batCount >= 3) score += 5;
+    // BALANCE MULTIPLIERS
+    let balanceFactor = 1.0;
 
-    if (bowlCount >= 5) score += 10;
-    else if (bowlCount >= 3) score += 5;
+    // Wicketkeeper is essential
+    if (wkCount === 0) balanceFactor *= 0.7; // 30% penalty
+    if (wkCount === 1) balanceFactor *= 1.1; // 10% bonus
+    if (wkCount >= 2) balanceFactor *= 1.15; // 15% bonus
 
-    if (arCount >= 2) score += 10;
-    else if (arCount >= 1) score += 5;
+    // Batting depth
+    if (batCount < 4) balanceFactor *= 0.85;
+    if (batCount >= 6) balanceFactor *= 1.1;
 
-    score += (starCount * 4); // Up to 20-30 pts for star players
+    // Bowling depth
+    if (bowlCount < 5) balanceFactor *= 0.8;
+    if (bowlCount >= 6) balanceFactor *= 1.1;
 
-    // Formatting score to be out of 100 max
-    score = Math.min(100, score);
+    // All-rounder versatility
+    if (arCount >= 3) balanceFactor *= 1.1;
+    if (arCount < 1) balanceFactor *= 0.9;
+
+    // Foreign limit enforcement
+    if (foreignCount > 8) balanceFactor *= 0.75; // Heavy penalty for illegal squad
+    if (foreignCount === 0) balanceFactor *= 0.9; // Lack of international star power
+
+    let finalScore = rawScore * balanceFactor;
+
+    // Final Normalization: Ensuring variance
+    // Making it very hard to get 100
+    finalScore = (finalScore / 110) * 100;
+
+    // Add a tiny random jitter based on Team ID to prevent identical ties
+    const jitter = (parseInt(team.id.split('_')[1] || '0') * 0.1);
+    finalScore += jitter;
 
     // Penalty for failing minimum squad requirement
-    if ((team.squad || []).length < 15) {
-      score = 0;
-    }
+    if (squadIds.length < 15) finalScore = finalScore * 0.2; // Massive fail
 
     const info = teamData.find((td: any) => td.id === team.id);
-
-    return { ...team, score: Math.round(score), info };
+    return { ...team, score: Math.min(100, Math.round(finalScore)), info };
   }).sort((a: any, b: any) => b.score - a.score);
 
   return (
@@ -1351,12 +1526,27 @@ function PostAuctionScreen({ teams, players, teamData }: any) {
       <h1 style={{ fontSize: '3rem', fontWeight: 950, marginBottom: '10px' }}>GAME OVER</h1>
       <p style={{ color: '#94a3b8', letterSpacing: '4px', fontWeight: 900, marginBottom: '40px', cursor: 'default' }}>FINAL SQUAD RATINGS ACCORDING TO OUR EXPERT AI ENGINE. <br /><span style={{ color: 'var(--accent)' }}>CLICK ON ANY TEAM TO VIEW AI GENERATED BEST 11 AND TEAM ANALYSIS</span></p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', maxWidth: '800px', margin: '0 auto', gap: '5px' }}>
         {scoredTeams.map((t: any, idx: number) => (
           <div
             key={t.id}
             onClick={() => { if (analyzingTeamId !== t.id) handleAnalyzeTeam(t); }}
-            style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '20px', border: idx === 0 ? `2px solid ${t.info?.color}` : '1px solid rgba(255,255,255,0.1)', cursor: analyzingTeamId === t.id ? 'wait' : 'pointer', opacity: analyzingTeamId === t.id ? 0.7 : 1, transition: '0.2s', position: 'relative', overflow: 'hidden' }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: `linear-gradient(90deg, color-mix(in srgb, ${t.info?.color}, black 40%) 0%, ${t.info?.color} 100%)`,
+              borderRadius: '24px',
+              padding: '24px',
+              marginBottom: '12px',
+              border: idx === 0 ? `3px solid white` : '1px solid rgba(255,255,255,0.1)',
+              cursor: analyzingTeamId === t.id ? 'wait' : 'pointer',
+              opacity: analyzingTeamId === t.id ? 0.7 : 1,
+              transition: '0.3s transform ease',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              transform: analyzingTeamId === t.id ? 'scale(0.98)' : 'scale(1)'
+            }}
           >
             {analyzingTeamId === t.id && (
               <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
@@ -1372,8 +1562,8 @@ function PostAuctionScreen({ teams, players, teamData }: any) {
               <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 800 }}>{(t.squad || []).length} Players</p>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <span style={{ fontSize: '2rem', fontWeight: 950, color: 'var(--accent)' }}>{t.score} ⭐</span>
-              <p style={{ fontSize: '10px', color: '#64748b', fontWeight: 900 }}>RATING</p>
+              <span style={{ fontSize: '2rem', fontWeight: 950, color: t.info?.secondary || 'white' }}>{t.score} ⭐</span>
+              <p style={{ fontSize: '10px', color: t.info?.secondary || 'rgba(255,255,255,0.7)', fontWeight: 900, opacity: 0.9 }}>RATING</p>
             </div>
           </div>
         ))}

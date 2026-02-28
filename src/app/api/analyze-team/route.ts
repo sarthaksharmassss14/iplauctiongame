@@ -1,10 +1,28 @@
 import { NextResponse } from 'next/server';
 import { Groq } from 'groq-sdk';
 
+// Global cache for end-of-game analysis
+const analysisCache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+
 export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { teamName, players } = body;
+
+        // Use a unique key based on team name and player IDs (sorted) to identify same squad
+        const playerIdsKey = players.map((p: any) => p.id).sort().join('_');
+        const cacheKey = `${teamName}_${playerIdsKey}`;
+
+        const cached = analysisCache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+            console.log(`[AI] Analysis Cache Hit for ${teamName}`);
+            return NextResponse.json(cached.data);
+        }
+
+        if (!process.env.GROQ_API_KEY) {
+            return NextResponse.json({ error: "API Key missing" }, { status: 500 });
+        }
 
         const groq = new Groq({
             apiKey: process.env.GROQ_API_KEY
@@ -33,7 +51,12 @@ Output a strictly valid JSON object with exactly this schema:
         });
 
         const responseContent = chatCompletion.choices[0].message.content;
-        return NextResponse.json(JSON.parse(responseContent || "{}"));
+        const result = JSON.parse(responseContent || "{}");
+
+        // Cache the result
+        analysisCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+        return NextResponse.json(result);
 
     } catch (error: any) {
         console.error("AI Analysis Error:", error);
