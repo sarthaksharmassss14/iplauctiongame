@@ -343,35 +343,43 @@ export async function skipPlayerAction(roomId: string) {
 
         // 2. Identify Potential Bots
         const winningTeam = auctionState.highestBidderId ? teams.find(t => t.id === auctionState.highestBidderId) : null;
-        const isHumanWinning = winningTeam && !winningTeam.isBot;
 
         let selectedBot: Team | undefined;
         let actualP = targetPremiumPrice;
 
-        const eligibleBots = teams.filter(t => {
+        // ALL bots must pass these strict criteria to be eligible for assignment
+        const getEligibleBots = (price: number) => teams.filter(t => {
             if (!t.isBot) return false;
             if ((t.squad || []).length >= 21) return false;
             if (player.isForeign && (t.foreignCount || 0) >= 8) return false;
-            if (t.budget < (isHumanWinning ? auctionState.currentBid + 0.25 : baseInCr)) return false;
+            if (t.budget < price) return false;
             return true;
         });
 
-        if (isHumanWinning) {
-            // FORCE a bot to outbid the human
-            const richestBot = [...eligibleBots].sort((a, b) => b.budget - a.budget)[0];
-            selectedBot = richestBot;
-            actualP = Math.max(actualP, auctionState.currentBid + 0.25);
-        } else if (winningTeam && winningTeam.isBot) {
-            // Already a bot winning
+        const eligibleForPremium = getEligibleBots(actualP);
+
+        if (winningTeam && winningTeam.isBot && eligibleForPremium.some(b => b.id === winningTeam.id)) {
+            // Current winner is a bot AND still eligible for the premium price
             selectedBot = winningTeam;
-        } else if (!auctionState.highestBidderId) {
-            // No bids, find eligible bot
-            selectedBot = [...eligibleBots].sort((a, b) => b.budget - a.budget)[0];
+        } else {
+            // Need to find a DIFFERENT bot (either because human was winning OR current bot hit limits)
+            const preferredTeamId = homeTeamMapping[player.name];
+            const pTeam = preferredTeamId ? eligibleForPremium.find(t => t.id === preferredTeamId) : null;
+            const richestBot = [...eligibleForPremium].sort((a, b) => b.budget - a.budget)[0];
+
+            selectedBot = pTeam || richestBot;
+
+            // If we forced a change because human was winning, ensure price is at least currentBid + 0.25
+            if (winningTeam && !winningTeam.isBot) {
+                actualP = Math.max(actualP, auctionState.currentBid + 0.25);
+            }
         }
 
-        // 3. Final Eligibility & Execution
+        // 3. Final Execution
         if (selectedBot) {
-            if (selectedBot.budget < actualP) actualP = Math.max(baseInCr, selectedBot.budget);
+            // Triple check affordability (safety fallback)
+            if (selectedBot.budget < actualP) actualP = selectedBot.budget;
+            if (actualP < baseInCr) actualP = baseInCr;
             if (actualP < 0.20) actualP = 0.20;
 
             selectedBot.budget = Number((selectedBot.budget - actualP).toFixed(2));
@@ -388,21 +396,24 @@ export async function skipPlayerAction(roomId: string) {
             auctionState.status = 'sold';
             auctionState.timer = 0;
         } else {
+            // Case where NO BOT in the entire league is eligible (rare but possible)
             if (!auctionState.highestBidderId) {
                 player.status = 'unsold';
                 player.teamId = null;
                 player.soldPrice = 0;
                 auctionState.status = 'unsold';
             } else {
-                // Should not happen, but safety fallback
+                // If a bid started, we MUST sell. If no bot is eligible, it stays with the current winner.
+                // This preserves the integrity of the bid that already happened.
                 const fallbackWinner = teams.find(t => t.id === auctionState.highestBidderId);
                 if (fallbackWinner) {
-                    fallbackWinner.budget = Number((fallbackWinner.budget - auctionState.currentBid).toFixed(2));
+                    actualP = auctionState.currentBid;
+                    fallbackWinner.budget = Number((fallbackWinner.budget - actualP).toFixed(2));
                     if (!fallbackWinner.squad) fallbackWinner.squad = [];
                     fallbackWinner.squad.push(player.id);
                     if (player.isForeign) fallbackWinner.foreignCount = (fallbackWinner.foreignCount || 0) + 1;
                     player.status = 'sold';
-                    player.soldPrice = auctionState.currentBid;
+                    player.soldPrice = actualP;
                     player.teamId = fallbackWinner.id;
                     auctionState.status = 'sold';
                 }
