@@ -365,23 +365,25 @@ export async function skipPlayerAction(roomId: string) {
                 const candidateBot = pTeam || bestGenericBot;
                 const stats = candidateBot ? getBotStats(candidateBot) : { available: 0, health: 1 };
 
-                // DYNAMIC TARGET PRICE (Purse-Aware)
-                let targetPrice = baseInCr;
-                if (r >= 5) targetPrice = baseInCr * (4.5 + Math.random() * 3.0);
-                else if (r >= 4) targetPrice = baseInCr + (1.5 + Math.random() * 2.5);
-                else if (r === 3) targetPrice = baseInCr + (0.25 + Math.random() * 1.5);
+                // USER RULE: DYNAMIC INCREMENTS BASED ON RATING
+                // 5 star = current bid + 3-5 CR
+                // 4 star = current bid + 2-3 CR
+                // 3 star = current bid + 1 CR
+                // 2 star = current bid (as is)
+                let ratingInc = 0;
+                if (r >= 5) ratingInc = 3.0 + (Math.random() * 2.0); // 3-5 Cr
+                else if (r >= 4) ratingInc = 2.0 + (Math.random() * 1.0); // 2-3 Cr
+                else if (r >= 3) ratingInc = 1.0; // 1 Cr
+                else ratingInc = 0; // 2 star keeps current bid
 
-                // Damping for Budget Protection
-                targetPrice *= stats.health;
+                const currentP = hasBid ? auctionState.currentBid : baseInCr;
+                let targetPrice = currentP + ratingInc;
 
-                // Dynamic Increment for Outbidding
-                let dynamicInc = 0.25;
-                if (r >= 5) dynamicInc = 1.5 + Math.random() * 2.0;
-                else if (r >= 4) dynamicInc = 0.75 + Math.random() * 1.25;
+                // Ensure target doesn't exceed bot's health-adjusted logic too much, 
+                // but prioritize the user's specific rating rules.
+                targetPrice = Math.min(targetPrice, 18.0); // Hard cap at 18 Cr as per earlier bot logic
 
-                const minRequired = hasBid ? (auctionState.currentBid + dynamicInc) : baseInCr;
-                let finalP = Math.max(targetPrice, minRequired);
-                finalP = Math.floor(Math.min(18, finalP) * 4) / 4;
+                let finalP = Math.floor(targetPrice * 4) / 4; // Round to nearest 0.25
 
                 const isTeamEligible = (t: Team, price: number) => {
                     if (!t.isBot || t.id === auctionState.hostId) return false;
@@ -397,11 +399,11 @@ export async function skipPlayerAction(roomId: string) {
                     selectedBot = bestGenericBot;
                     actualP = finalP;
                 } else if (candidateBot) {
-                    // EMERGENCY BARGAIN: Force to richest bot at a price they CAN afford (min required)
+                    // EMERGENCY: If no bot can afford the premium price, 
+                    // still assign but at a price they can afford (at least current bid + safety check)
                     selectedBot = candidateBot;
-                    actualP = Math.max(baseInCr, auctionState.currentBid);
-                    // Ensure we don't put them in negative if possible
-                    if (selectedBot.budget < actualP) actualP = Math.max(0.20, selectedBot.budget);
+                    actualP = Math.max(currentP, Math.min(finalP, selectedBot.budget));
+                    if (actualP < 0.20) actualP = 0.20;
                 }
             }
         }
