@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createRoom, joinRoom, placeBid, skipPlayerAction, forceStartAuction, startHostLogic, stopHostLogic, forceStartAccelerated, endAuction, autoAssignRemainingSlots, debugSkipToEnd } from "@/lib/firebaseAuction";
+import { createRoom, joinRoom, placeBid, skipPlayerAction, forceStartAuction, startHostLogic, stopHostLogic, forceStartAccelerated, endAuction, autoAssignRemainingSlots } from "@/lib/firebaseAuction";
 import { rtdb } from "@/lib/firebase";
 import { ref, onValue, get } from "firebase/database";
 import { Player, Team, AuctionState } from "@/types";
@@ -1061,14 +1061,7 @@ export default function Home() {
                       </button>
                     </div>
 
-                    {isHost && (
-                      <button
-                        onClick={() => debugSkipToEnd(roomId)}
-                        style={{ width: '100%', marginTop: '10px', padding: '10px', fontSize: '10px', opacity: 0.3, background: 'rgba(255,255,255,0.1)', color: 'white', borderRadius: '8px', cursor: 'pointer' }}
-                      >
-                        DEBUG: JUMP TO END (TEST REPORT)
-                      </button>
-                    )}
+
 
                     {teams.filter(t => !t.isBot).length === 1 && (
                       <button

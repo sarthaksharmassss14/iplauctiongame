@@ -19,40 +19,7 @@ const teamDataConf = [
     { id: "team_9", name: "Gujarat Titans", short: "GT", color: "var(--gt-blue)", secondary: "#D1AB3E", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/300px-Gujarat_Titans_Logo.svg.png" }
 ];
 
-export async function debugSkipToEnd(roomId: string) {
-    const doc = await get(ref(rtdb, `rooms/${roomId}`));
-    if (!doc.exists()) return;
-    const data = doc.val();
-    const players: Player[] = data.players;
-    const auctionState: AuctionState = data.auctionState;
 
-    const updatedPlayers = players.map((p: Player) => {
-        if (p.status !== 'sold') return { ...p, status: 'unsold' as const };
-        return p;
-    });
-
-    if (!auctionState.isAccelerated) {
-        await update(ref(rtdb, `rooms/${roomId}`), {
-            players: updatedPlayers,
-            auctionState: {
-                ...auctionState,
-                currentPlayerIndex: players.length,
-                status: 'waiting_accelerated',
-                timer: 0
-            }
-        });
-    } else {
-        await update(ref(rtdb, `rooms/${roomId}`), {
-            players: updatedPlayers,
-            auctionState: {
-                ...auctionState,
-                currentPlayerIndex: players.length,
-                status: 'finished',
-                timer: 0
-            }
-        });
-    }
-}
 
 export const createInitialTeams = (): Team[] => teamDataConf.map((tc, i) => ({
     id: tc.id, name: tc.name, short: tc.short,
