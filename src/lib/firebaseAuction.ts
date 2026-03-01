@@ -134,7 +134,9 @@ export function startHostLogic(roomId: string) {
         if (eligibleBots.length === 0) return;
 
         // DELAYED OPENING: Bots wait 4 seconds before taking the base price
-        const reactionDelay = auctionState.highestBidderId === null ? 4000 + Math.random() * 1000 : 400 + Math.random() * 800;
+        const reactionDelay = auctionState.highestBidderId === null
+            ? 4000 + Math.random() * 2000
+            : 1500 + Math.random() * 2000; // Increased delay to prevent "all bots coming at once"
 
         isProcessing = true;
         setTimeout(async () => {
@@ -246,7 +248,7 @@ async function startNewRound(roomId: string, data: { auctionState: AuctionState,
         status: 'bidding',
         currentBid: player.basePrice / 100,
         highestBidderId: null,
-        timer: auctionState.isAccelerated ? 4 : 7,
+        timer: 10, // Standard timer for new round
         skipInProgress: false // ALWAYS RESET ON NEW ROUND
     });
 }
@@ -317,22 +319,19 @@ export async function skipPlayerAction(roomId: string) {
 
         // Custom Mapping for Star Players
         const homeTeamMapping: Record<string, string> = {
-            "Sanju Samson": "team_4", "Jos Buttler": "team_4", "Yashasvi Jaiswal": "team_4", // RR
+            "Sanju Samson": "team_6", "Jos Buttler": "team_6", "Yashasvi Jaiswal": "team_6", // RR
             "MS Dhoni": "team_0", "Ravindra Jadeja": "team_0", "Ruturaj Gaikwad": "team_0", // CSK
-            "Virat Kohli": "team_6", // RCB
+            "Virat Kohli": "team_2", // RCB
             "Rohit Sharma": "team_1", "Suryakumar Yadav": "team_1", "Jasprit Bumrah": "team_1", "Hardik Pandya": "team_1", // MI
-            "Rashid Khan": "team_3", "Shubman Gill": "team_3", // GT
-            "Rishabh Pant": "team_5", // LSG
-            "Shreyas Iyer": "team_2", "Sunil Narine": "team_2", "Andre Russell": "team_2", // KKR
-            "Abhishek Sharma": "team_9", "Pat Cummins": "team_9", "Travis Head": "team_9", // SRH
-            "Arshdeep Singh": "team_7", // PBKS
-            "KL Rahul": "team_8", "Axar Patel": "team_8" // DC
+            "Rashid Khan": "team_9", "Shubman Gill": "team_9", // GT
+            "Rishabh Pant": "team_8", // LSG
+            "Shreyas Iyer": "team_3", "Sunil Narine": "team_3", "Andre Russell": "team_3", // KKR
+            "Abhishek Sharma": "team_7", "Pat Cummins": "team_7", "Travis Head": "team_7", // SRH
+            "Arshdeep Singh": "team_5", // PBKS
+            "KL Rahul": "team_4", "Axar Patel": "team_4" // DC
         };
 
-        const preferredTeamId = homeTeamMapping[player.name];
-
         // 1. Calculate the Premium Price based on Star Rating
-        // 5 star = +3-5 CR, 4 star = +2-3 CR, 3 star = +1 CR, 2 star = +0 CR
         let ratingInc = 0;
         if (r >= 5) ratingInc = 3.0 + (Math.random() * 2.0);
         else if (r >= 4) ratingInc = 2.0 + (Math.random() * 1.0);
@@ -342,43 +341,39 @@ export async function skipPlayerAction(roomId: string) {
         let targetPremiumPrice = Math.floor((currentP + ratingInc) * 4) / 4;
         targetPremiumPrice = Math.min(targetPremiumPrice, 18.0); // Hard cap
 
-        // 2. Identify the Target Bot
+        // 2. Identify Potential Bots
+        const winningTeam = auctionState.highestBidderId ? teams.find(t => t.id === auctionState.highestBidderId) : null;
+        const isHumanWinning = winningTeam && !winningTeam.isBot;
+
         let selectedBot: Team | undefined;
         let actualP = targetPremiumPrice;
 
-        if (auctionState.highestBidderId && auctionState.highestBidderId !== auctionState.hostId) {
-            // If a bot is already winning, they remain the winner but at the premium price
-            selectedBot = teams.find(t => t.id === auctionState.highestBidderId);
+        const eligibleBots = teams.filter(t => {
+            if (!t.isBot) return false;
+            if ((t.squad || []).length >= 21) return false;
+            if (player.isForeign && (t.foreignCount || 0) >= 8) return false;
+            if (t.budget < (isHumanWinning ? auctionState.currentBid + 0.25 : baseInCr)) return false;
+            return true;
+        });
+
+        if (isHumanWinning) {
+            // FORCE a bot to outbid the human
+            const richestBot = [...eligibleBots].sort((a, b) => b.budget - a.budget)[0];
+            selectedBot = richestBot;
+            actualP = Math.max(actualP, auctionState.currentBid + 0.25);
+        } else if (winningTeam && winningTeam.isBot) {
+            // Already a bot winning
+            selectedBot = winningTeam;
+        } else if (!auctionState.highestBidderId) {
+            // No bids, find eligible bot
+            selectedBot = [...eligibleBots].sort((a, b) => b.budget - a.budget)[0];
         }
 
-        if (!selectedBot) {
-            const preferredTeamId = homeTeamMapping[player.name];
-            const isStar = !!preferredTeamId;
-            const hasBid = !!auctionState.highestBidderId;
-
-            // Rule: If no bid and not a star -> go Unsold
-            if (!hasBid && !isStar) {
-                selectedBot = undefined;
-            } else {
-                const pTeam = preferredTeamId ? teams.find(t => t.id === preferredTeamId && t.isBot) : null;
-                const bestGenericBot = [...teams]
-                    .filter(t => t.isBot && t.id !== auctionState.hostId && (t.squad || []).length < 25)
-                    .sort((a, b) => b.budget - a.budget)[0];
-
-                selectedBot = pTeam || bestGenericBot;
-            }
-        }
-
-        // 3. Final Eligibility & Safety Check
+        // 3. Final Eligibility & Execution
         if (selectedBot) {
-            // Ensure bot can afford it, or fallback to their max budget if they are the only choice
-            if (selectedBot.budget < actualP) {
-                actualP = Math.max(currentP, selectedBot.budget);
-            }
+            if (selectedBot.budget < actualP) actualP = Math.max(baseInCr, selectedBot.budget);
             if (actualP < 0.20) actualP = 0.20;
-        }
 
-        if (selectedBot && actualP >= 0) {
             selectedBot.budget = Number((selectedBot.budget - actualP).toFixed(2));
             if (!selectedBot.squad) selectedBot.squad = [];
             selectedBot.squad.push(player.id);
@@ -393,8 +388,25 @@ export async function skipPlayerAction(roomId: string) {
             auctionState.status = 'sold';
             auctionState.timer = 0;
         } else {
-            player.status = 'unsold';
-            auctionState.status = 'unsold';
+            if (!auctionState.highestBidderId) {
+                player.status = 'unsold';
+                player.teamId = null;
+                player.soldPrice = 0;
+                auctionState.status = 'unsold';
+            } else {
+                // Should not happen, but safety fallback
+                const fallbackWinner = teams.find(t => t.id === auctionState.highestBidderId);
+                if (fallbackWinner) {
+                    fallbackWinner.budget = Number((fallbackWinner.budget - auctionState.currentBid).toFixed(2));
+                    if (!fallbackWinner.squad) fallbackWinner.squad = [];
+                    fallbackWinner.squad.push(player.id);
+                    if (player.isForeign) fallbackWinner.foreignCount = (fallbackWinner.foreignCount || 0) + 1;
+                    player.status = 'sold';
+                    player.soldPrice = auctionState.currentBid;
+                    player.teamId = fallbackWinner.id;
+                    auctionState.status = 'sold';
+                }
+            }
             auctionState.timer = 0;
         }
 
