@@ -331,17 +331,28 @@ export async function skipPlayerAction(roomId: string) {
 
         const preferredTeamId = homeTeamMapping[player.name];
 
-        let selectedBot: Team | undefined;
-        let actualP = 0;
+        // 1. Calculate the Premium Price based on Star Rating
+        // 5 star = +3-5 CR, 4 star = +2-3 CR, 3 star = +1 CR, 2 star = +0 CR
+        let ratingInc = 0;
+        if (r >= 5) ratingInc = 3.0 + (Math.random() * 2.0);
+        else if (r >= 4) ratingInc = 2.0 + (Math.random() * 1.0);
+        else if (r >= 3) ratingInc = 1.0;
 
-        // DECISION LOGIC
+        const currentP = auctionState.highestBidderId ? auctionState.currentBid : baseInCr;
+        let targetPremiumPrice = Math.floor((currentP + ratingInc) * 4) / 4;
+        targetPremiumPrice = Math.min(targetPremiumPrice, 18.0); // Hard cap
+
+        // 2. Identify the Target Bot
+        let selectedBot: Team | undefined;
+        let actualP = targetPremiumPrice;
+
         if (auctionState.highestBidderId && auctionState.highestBidderId !== auctionState.hostId) {
-            // 1. If a bot is already winning, award to them at current bid
+            // If a bot is already winning, they remain the winner but at the premium price
             selectedBot = teams.find(t => t.id === auctionState.highestBidderId);
-            if (selectedBot) actualP = auctionState.currentBid;
         }
 
         if (!selectedBot) {
+            const preferredTeamId = homeTeamMapping[player.name];
             const isStar = !!preferredTeamId;
             const hasBid = !!auctionState.highestBidderId;
 
@@ -349,63 +360,22 @@ export async function skipPlayerAction(roomId: string) {
             if (!hasBid && !isStar) {
                 selectedBot = undefined;
             } else {
-                // Find suitable bots first to determine purse-based damping
-                const getBotStats = (bot: Team) => {
-                    const squadSize = (bot.squad || []).length;
-                    const slotsToMin = Math.max(0, 15 - squadSize);
-                    const reserved = Math.max(0, slotsToMin - 1) * 0.30;
-                    return { available: bot.budget - reserved, health: Math.min(1.2, bot.budget / 45) };
-                };
-
                 const pTeam = preferredTeamId ? teams.find(t => t.id === preferredTeamId && t.isBot) : null;
                 const bestGenericBot = [...teams]
                     .filter(t => t.isBot && t.id !== auctionState.hostId && (t.squad || []).length < 25)
                     .sort((a, b) => b.budget - a.budget)[0];
 
-                const candidateBot = pTeam || bestGenericBot;
-                const stats = candidateBot ? getBotStats(candidateBot) : { available: 0, health: 1 };
-
-                // USER RULE: DYNAMIC INCREMENTS BASED ON RATING
-                // 5 star = current bid + 3-5 CR
-                // 4 star = current bid + 2-3 CR
-                // 3 star = current bid + 1 CR
-                // 2 star = current bid (as is)
-                let ratingInc = 0;
-                if (r >= 5) ratingInc = 3.0 + (Math.random() * 2.0); // 3-5 Cr
-                else if (r >= 4) ratingInc = 2.0 + (Math.random() * 1.0); // 2-3 Cr
-                else if (r >= 3) ratingInc = 1.0; // 1 Cr
-                else ratingInc = 0; // 2 star keeps current bid
-
-                const currentP = hasBid ? auctionState.currentBid : baseInCr;
-                let targetPrice = currentP + ratingInc;
-
-                // Ensure target doesn't exceed bot's health-adjusted logic too much, 
-                // but prioritize the user's specific rating rules.
-                targetPrice = Math.min(targetPrice, 18.0); // Hard cap at 18 Cr as per earlier bot logic
-
-                let finalP = Math.floor(targetPrice * 4) / 4; // Round to nearest 0.25
-
-                const isTeamEligible = (t: Team, price: number) => {
-                    if (!t.isBot || t.id === auctionState.hostId) return false;
-                    const { available } = getBotStats(t);
-                    return available >= price;
-                };
-
-                // FINAL ASSIGNMENT
-                if (pTeam && isTeamEligible(pTeam, finalP)) {
-                    selectedBot = pTeam;
-                    actualP = finalP;
-                } else if (bestGenericBot && isTeamEligible(bestGenericBot, finalP)) {
-                    selectedBot = bestGenericBot;
-                    actualP = finalP;
-                } else if (candidateBot) {
-                    // EMERGENCY: If no bot can afford the premium price, 
-                    // still assign but at a price they can afford (at least current bid + safety check)
-                    selectedBot = candidateBot;
-                    actualP = Math.max(currentP, Math.min(finalP, selectedBot.budget));
-                    if (actualP < 0.20) actualP = 0.20;
-                }
+                selectedBot = pTeam || bestGenericBot;
             }
+        }
+
+        // 3. Final Eligibility & Safety Check
+        if (selectedBot) {
+            // Ensure bot can afford it, or fallback to their max budget if they are the only choice
+            if (selectedBot.budget < actualP) {
+                actualP = Math.max(currentP, selectedBot.budget);
+            }
+            if (actualP < 0.20) actualP = 0.20;
         }
 
         if (selectedBot && actualP >= 0) {
