@@ -99,7 +99,7 @@ export async function placeBid(roomId: string, teamId: string) {
         const basePrice = (Number(player?.basePrice) || 20) / 100;
 
         // CRITICAL: Force exactly base price for the first bidder
-        if (state.highestBidderId === null) {
+        if (!state.highestBidderId) {
             state.currentBid = basePrice;
             console.log(`[BID] Enforcing Base Price: ${basePrice} for ${player?.name}`);
         } else {
@@ -134,7 +134,7 @@ export function startHostLogic(roomId: string) {
         if (eligibleBots.length === 0) return;
 
         // DELAYED OPENING: Bots wait 4 seconds before taking the base price
-        const reactionDelay = auctionState.highestBidderId === null
+        const reactionDelay = !auctionState.highestBidderId
             ? 4000 + Math.random() * 2000
             : 1500 + Math.random() * 2000; // Increased delay to prevent "all bots coming at once"
 

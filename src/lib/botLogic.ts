@@ -13,7 +13,7 @@ export async function getBotDecision(team: Team, currentPlayer: Player, currentB
     if (squadSize >= 21) return false; // Bot soft cap at 21
 
     const baseInCr = (Number(currentPlayer.basePrice) || 20) / 100;
-    const nextBidAmount = highestBidderId === null ? baseInCr : currentBid + 0.25;
+    const nextBidAmount = !highestBidderId ? baseInCr : currentBid + 0.25;
 
     // Minimum buffer: 0.20Cr per remaining slot to reach 15 players (more aggressive utilization)
     const slotsToMin = Math.max(0, minSquadSize - squadSize);
@@ -96,7 +96,7 @@ export async function getBotDecision(team: Team, currentPlayer: Player, currentB
     let bidProbability = 0.85;
     const pricePressure = nextBidAmount / bidValueLimit;
 
-    if (highestBidderId === null) {
+    if (!highestBidderId) {
         bidProbability = 0.98;
     } else {
         if (pricePressure > 0.9) bidProbability = 0.2;
