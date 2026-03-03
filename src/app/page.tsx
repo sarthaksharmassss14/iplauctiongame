@@ -198,7 +198,7 @@ export default function Home() {
     };
 
     updateTimer();
-    const interval = setInterval(updateTimer, 200);
+    const interval = setInterval(updateTimer, 50);
     return () => clearInterval(interval);
   }, [auctionState?.timerEndsAt, auctionState?.timer, serverOffset]);
 

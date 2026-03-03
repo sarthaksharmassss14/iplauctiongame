@@ -181,6 +181,7 @@ export function startHostLogic(roomId: string) {
                 const fullDoc = await get(ref(rtdb, `rooms/${roomId}`));
                 if (fullDoc.exists()) {
                     isProcessingResolve = true;
+                    console.log(`[HOST] Timer Expired. Resolving at ${now} vs endsAt ${endsAt}`);
                     // Double check status before resolution inside transaction if needed,
                     // but here we just proceed to resolve.
                     await resolveRound(roomId, fullDoc.val());
@@ -188,7 +189,7 @@ export function startHostLogic(roomId: string) {
                 }
             }
         }
-    }, 100);
+    }, 50);
 }
 
 export function stopHostLogic() {
