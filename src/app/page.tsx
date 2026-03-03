@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createRoom, joinRoom, placeBid, skipPlayerAction, forceStartAuction, startHostLogic, stopHostLogic, forceStartAccelerated, endAuction, autoAssignRemainingSlots } from "@/lib/firebaseAuction";
+import { createRoom, joinRoom, placeBid, skipPlayerAction, forceStartAuction, startHostLogic, stopHostLogic, forceStartAccelerated, endAuction, autoAssignRemainingSlots, setGlobalServerOffset } from "@/lib/firebaseAuction";
 import { rtdb } from "@/lib/firebase";
 import { ref, onValue, get } from "firebase/database";
 import { Player, Team, AuctionState } from "@/types";
@@ -176,7 +176,9 @@ export default function Home() {
   useEffect(() => {
     const offsetRef = ref(rtdb, ".info/serverTimeOffset");
     onValue(offsetRef, (snap) => {
-      setServerOffset(snap.val() || 0);
+      const offset = snap.val() || 0;
+      setServerOffset(offset);
+      setGlobalServerOffset(offset); // Sync with core logic module
     });
   }, []);
 

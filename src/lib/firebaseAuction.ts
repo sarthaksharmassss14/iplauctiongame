@@ -19,6 +19,12 @@ const teamDataConf = [
     { id: "team_9", name: "Gujarat Titans", short: "GT", color: "var(--gt-blue)", secondary: "#D1AB3E", logo: "https://upload.wikimedia.org/wikipedia/en/thumb/0/09/Gujarat_Titans_Logo.svg/300px-Gujarat_Titans_Logo.svg.png" }
 ];
 
+let globalServerOffset = 0;
+export const setGlobalServerOffset = (offset: number) => {
+    globalServerOffset = offset;
+    console.log(`[SYNC] Server offset updated in module: ${offset}`);
+};
+
 
 
 export const createInitialTeams = (): Team[] => teamDataConf.map((tc, i) => ({
@@ -109,7 +115,7 @@ export async function placeBid(roomId: string, teamId: string) {
         const duration = state.isAccelerated ? 4000 : 7000;
         state.highestBidderId = teamId;
         state.timer = state.isAccelerated ? 4 : 7; // Keep for legacy UI
-        state.timerEndsAt = Date.now() + duration;
+        state.timerEndsAt = (Date.now() + globalServerOffset) + duration;
         return state;
     });
 }
@@ -168,27 +174,21 @@ export function startHostLogic(roomId: string) {
         const state: AuctionState = doc.val();
 
         if (state.status === 'starting' || state.status === 'bidding') {
-            const now = Date.now();
+            const now = Date.now() + globalServerOffset;
             const endsAt = state.timerEndsAt || (now + (state.timer * 1000));
 
             if (now >= endsAt && !isProcessingResolve) {
                 const fullDoc = await get(ref(rtdb, `rooms/${roomId}`));
                 if (fullDoc.exists()) {
                     isProcessingResolve = true;
+                    // Double check status before resolution inside transaction if needed,
+                    // but here we just proceed to resolve.
                     await resolveRound(roomId, fullDoc.val());
                     isProcessingResolve = false;
                 }
-            } else if (state.timer > 0) {
-                // For legacy UI support, we can update the timer but only locally or 
-                // sparingly if needed. But let's avoid writes for 10s efficiency.
-                // We'll update the 'timer' field every few seconds to keep legacy UI alive
-                const remaining = Math.max(0, Math.ceil((endsAt - now) / 1000));
-                if (remaining !== state.timer && remaining % 2 === 0) { // Update every 2s
-                    update(ref(rtdb, `rooms/${roomId}/auctionState`), { timer: remaining });
-                }
             }
         }
-    }, 500); // Check more frequently but don't write
+    }, 100);
 }
 
 export function stopHostLogic() {
@@ -200,7 +200,7 @@ export async function forceStartAuction(roomId: string) {
     await update(ref(rtdb, `rooms/${roomId}/auctionState`), {
         status: 'starting',
         timer: 5,
-        timerEndsAt: Date.now() + 5000
+        timerEndsAt: (Date.now() + globalServerOffset) + 5000
     });
 }
 
@@ -266,7 +266,7 @@ async function startNewRound(roomId: string, data: { auctionState: AuctionState,
         currentBid: player.basePrice / 100,
         highestBidderId: null,
         timer: 10,
-        timerEndsAt: Date.now() + duration,
+        timerEndsAt: (Date.now() + globalServerOffset) + duration,
         skipInProgress: false // ALWAYS RESET ON NEW ROUND
     });
 }
