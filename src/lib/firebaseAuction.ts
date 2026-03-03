@@ -141,10 +141,13 @@ export function startHostLogic(roomId: string) {
         const eligibleBots = teams.filter((t: Team) => t.isBot && t.id !== auctionState.highestBidderId);
         if (eligibleBots.length === 0) return;
 
-        // DELAYED OPENING: Bots wait 4 seconds before taking the base price
+        const player: Player = data.players[auctionState.currentPlayerIndex];
+        const isStar = (player?.rating || 0) >= 4;
+
+        // BOTS are now much faster, especially for star players
         const reactionDelay = !auctionState.highestBidderId
-            ? 4000 + Math.random() * 2000
-            : 1500 + Math.random() * 2000; // Increased delay to prevent "all bots coming at once"
+            ? (isStar ? 800 + Math.random() * 1000 : 2500 + Math.random() * 1500)
+            : (isStar ? 400 + Math.random() * 800 : 1000 + Math.random() * 1200);
 
         isProcessing = true;
         setTimeout(async () => {

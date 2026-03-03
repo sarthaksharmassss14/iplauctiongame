@@ -72,18 +72,16 @@ export async function getBotDecision(team: Team, currentPlayer: Player, currentB
     // 5. HARD CAPS & REALISM
     let bidValueLimit = baseInCr * finalMultiplier;
 
-    // USER RULE: Absolutely NO player over 18 CR
-    const ABSOLUTE_MAX_BID = 18.0;
-
-    // Rating-based caps for balance
-    const ratingCaps: Record<number, number> = { 5: 18.0, 4: 12.0, 3: 7.0, 2: 3.5 };
+    // Harder caps for balance but allowed to go higher
+    const ABSOLUTE_MAX_BID = 24.50; // Increased to reflect real IPL record prices (Starc/Cummins)
+    const ratingCaps: Record<number, number> = { 5: 24.50, 4: 15.0, 3: 8.5, 2: 4.5 };
     const hardCap = Math.min(ABSOLUTE_MAX_BID, ratingCaps[rating] || 5.0);
 
     bidValueLimit = Math.min(bidValueLimit, hardCap);
 
-    // Budget Protection: Be aggressive early, conservative only if very low on purse
-    const safetyCap = team.budget * 0.5; // Allow up to 50% of REMAINING budget on a top player
-    if (remainingSlots > 10) {
+    // Budget Protection: Be aggressive early
+    const safetyCap = team.budget * 0.7; // Bots can spend up to 70% of remaining purse for a marquee (previously 50%)
+    if (remainingSlots > 12) {
         bidValueLimit = Math.min(bidValueLimit, safetyCap);
     }
 
@@ -92,20 +90,50 @@ export async function getBotDecision(team: Team, currentPlayer: Player, currentB
     // 6. FINAL DECISION
     if (nextBidAmount > bidValueLimit) return false;
 
-    // Probability logic
-    let bidProbability = 0.85;
+    // AI DECISION FOR STAR PLAYERS OR HIGH BIDS
+    if (rating >= 5 || nextBidAmount >= 5.0) {
+        try {
+            console.log(`[AI] Consulting Groq for ${currentPlayer.name} at ${nextBidAmount} Cr...`);
+            const response = await fetch('/api/bot-decision', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    teamName: team.name,
+                    budget: team.budget,
+                    playerName: currentPlayer.name,
+                    playerRole: currentPlayer.role,
+                    baseInCr,
+                    currentBid,
+                    bidValueLimit,
+                    nextBidAmount
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log(`[AI] Groq Response for ${currentPlayer.name}: ${data.decision ? 'YES' : 'NO'}`);
+                return data.decision;
+            }
+        } catch (error) {
+            console.error("[AI] Groq API Failed, falling back to local math:", error);
+        }
+    }
+
+    // Probability logic (fallback or for non-star players)
+    let bidProbability = 0.90; // Higher default probability
     const pricePressure = nextBidAmount / bidValueLimit;
 
     if (!highestBidderId) {
-        bidProbability = 0.98;
+        bidProbability = 0.99; // Almost always take base price if not bidding
     } else {
-        if (pricePressure > 0.9) bidProbability = 0.2;
-        else if (pricePressure > 0.7) bidProbability = 0.5;
-        else bidProbability = 0.8;
+        if (pricePressure > 0.95) bidProbability = 0.15;
+        else if (pricePressure > 0.8) bidProbability = 0.45;
+        else if (pricePressure > 0.6) bidProbability = 0.75;
+        else bidProbability = 0.95; // Very aggressive when price is low relative to valuation
     }
 
     // If desperate for role, increase probability
-    if (currentRoleCount === 0 && pricePressure < 0.95) bidProbability = 0.95;
+    if (currentRoleCount === 0 && pricePressure < 0.98) bidProbability = 0.98;
 
     return Math.random() < bidProbability;
 }

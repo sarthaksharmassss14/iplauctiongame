@@ -21,12 +21,12 @@ A high-performance, ultra-realtime IPL Auction simulation platform. Build your d
 
 ### 🏎️ Dynamic Auction Mechanics
 - **Accelerated Round:** Unsold players are brought back in an accelerated phase with faster timers.
-- **Auto-Assign (Squad Completion):** A one-click logic to fill remaining mandatory squad slots (min 15) for all teams based on eligibility and budget.
-- **Skip Logic:** Strategic option for single-player mode to automatically assign or unsold players to keep the momentum going.
+- **Auto-Assign (Squad Completion):** A one click logic to fill remaining mandatory squad slots (min 15) for all teams based on eligibility and budget.
+- **Skip Logic:** Strategic option for single player mode to automatically assign or unsold players to keep the momentum going.
 
 ### 📊 Expert AI Post-Auction Analysis
 - **Squad Evaluation:** Generates a professional quality score out of 100 for every team.
-- **Best XI Generator:** Expert algorithm selects the strongest starting 11 based on 4-foreigner limits and role-wise balance (Top order, Finishers, Pace, Spin).
+- **Best XI Generator:** Expert algorithm selects the strongest starting 11 based on 4 foreigner limits and role-wise balance (Top order, Finishers, Pace, Spin).
 - **Strengths & Weaknesses:** Detailed insights into your finalized roster.
 
 ### 💎 Premium Experience
@@ -90,7 +90,7 @@ Open [http://localhost:3000](http://localhost:3000) with your friends to start t
 ## 📈 Optimization Notes
 
 ### Floating Point Budget Fix
-The system uses rounded integer arithmetic (`Math.round(val * 100)`) for all budget-to-bid comparisons to prevent the common JavaScript floating-point bug where players couldn't bid with an exact 1.00 Cr purse.
+The system uses rounded integer arithmetic (`Math.round(val * 100)`) for all budget to bid comparisons to prevent the common JavaScript floating-point bug where players couldn't bid with an exact 1.00 Cr purse.
 
 ### Network Efficiency
 By moving away from per-second database writes for the timer, network traffic has been reduced by ~80%, allowing the game to sustain 10+ concurrent human players without lag spikes.
