@@ -120,15 +120,14 @@ export async function placeBid(roomId: string, teamId: string) {
     });
 }
 
-let hostInterval: NodeJS.Timeout | null = null;
+let hostInterval: any = null;
+let botInterval: any = null;
 let isProcessingResolve = false;
 let hostUnsubscribe: Unsubscribe | null = null;
 
 export function startHostLogic(roomId: string) {
-    if (hostInterval) {
-        if ((hostInterval as any)._botLoop) clearInterval((hostInterval as any)._botLoop);
-        clearInterval(hostInterval);
-    }
+    if (hostInterval) clearInterval(hostInterval);
+    if (botInterval) clearInterval(botInterval);
     if (hostUnsubscribe) hostUnsubscribe();
 
     const roomRef = ref(rtdb, `rooms/${roomId}`);
@@ -196,14 +195,12 @@ export function startHostLogic(roomId: string) {
     }, 50);
 
     // Store bot loop to clear it later
-    (hostInterval as any)._botLoop = botLoopInterval;
+    botInterval = botLoopInterval;
 }
 
 export function stopHostLogic() {
-    if (hostInterval) {
-        if ((hostInterval as any)._botLoop) clearInterval((hostInterval as any)._botLoop);
-        clearInterval(hostInterval);
-    }
+    if (hostInterval) clearInterval(hostInterval);
+    if (botInterval) clearInterval(botInterval);
     if (hostUnsubscribe) hostUnsubscribe();
 }
 
