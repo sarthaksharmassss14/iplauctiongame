@@ -133,14 +133,13 @@ export function startHostLogic(roomId: string) {
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     let isProcessing = false;
 
-    // --- BOT BIDDING LOOP (Independent of onValue) ---
+    // --- BOT BIDDING LOOP ---
     const botLoopInterval = setInterval(async () => {
         if (isProcessing) return;
 
         const doc = await get(ref(rtdb, `rooms/${roomId}`));
         if (!doc.exists()) return;
         const data = doc.val();
-
         if (data.auctionState.status !== 'bidding') return;
 
         const auctionState: AuctionState = data.auctionState;
@@ -148,29 +147,29 @@ export function startHostLogic(roomId: string) {
         const players: Player[] = data.players;
         const currentPlayer = players[auctionState.currentPlayerIndex];
 
-        // Only bots who ARE NOT the current highest bidder can bid
         const eligibleBots = teams.filter((t: Team) => t.isBot && t.id !== auctionState.highestBidderId);
         if (eligibleBots.length === 0) return;
 
-        // Pick a random bot to evaluate
-        const bot = eligibleBots[Math.floor(Math.random() * eligibleBots.length)];
+        // CRITICAL: Evaluate 3 random bots every 300ms for high-intensity bidding
+        const pool = [...eligibleBots].sort(() => Math.random() - 0.5).slice(0, 3);
 
-        isProcessing = true;
-        try {
-            const decision = await getBotDecision(bot, currentPlayer, auctionState.currentBid, auctionState.highestBidderId, players);
-            if (decision) {
-                // Add a small natural-feeling delay before the bid is actually placed
-                const isStar = (currentPlayer.rating || 0) >= 4;
-                const reactionTime = isStar ? 400 + Math.random() * 800 : 1200 + Math.random() * 1000;
-                await new Promise(r => setTimeout(r, reactionTime));
-                await placeBid(roomId, bot.id);
+        for (const bot of pool) {
+            isProcessing = true;
+            try {
+                const decision = await getBotDecision(bot, currentPlayer, auctionState.currentBid, auctionState.highestBidderId, players);
+                if (decision) {
+                    await new Promise(r => setTimeout(r, Math.random() * 200));
+                    await placeBid(roomId, bot.id);
+                    break;
+                }
+            } catch (e) {
+                console.error("[BOT LOOP] Error:", e);
+            } finally {
+                isProcessing = false;
             }
-        } catch (e) {
-            console.error("[BOT LOOP] Error:", e);
-        } finally {
-            isProcessing = false;
         }
-    }, 1200); // Check every 1.2s for bot activity
+    }, 300);
+
 
     // --- TIMER & RESOLUTION LOOP ---
     hostInterval = setInterval(async () => {

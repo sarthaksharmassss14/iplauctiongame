@@ -90,49 +90,49 @@ export async function getBotDecision(team: Team, currentPlayer: Player, currentB
     // 6. FINAL DECISION
     if (nextBidAmount > bidValueLimit) return false;
 
-    // AI DECISION FOR STAR PLAYERS OR HIGH BIDS
-    if (rating >= 5 || nextBidAmount >= 5.0) {
+    // MARQUEE OPENING: If no bid exists and it's a star, bots MUST open the bidding
+    if (!highestBidderId && rating >= 4) return true;
+
+    // AI DECISION ONLY FOR HIGH STAKES (Bids > 12 Cr)
+    if (nextBidAmount >= 12.0) {
         try {
-            console.log(`[AI] Consulting Groq for ${currentPlayer.name} at ${nextBidAmount} Cr...`);
             const response = await fetch('/api/bot-decision', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     teamName: team.name,
-                    budget: team.budget,
+                    budget: team.budget.toFixed(2),
                     playerName: currentPlayer.name,
                     playerRole: currentPlayer.role,
                     baseInCr,
-                    currentBid,
-                    bidValueLimit,
-                    nextBidAmount
+                    currentBid: currentBid.toFixed(2),
+                    bidValueLimit: bidValueLimit.toFixed(2),
+                    nextBidAmount: nextBidAmount.toFixed(2)
                 })
             });
 
             if (response.ok) {
                 const data = await response.json();
-                console.log(`[AI] Groq Response for ${currentPlayer.name}: ${data.decision ? 'YES' : 'NO'}`);
                 return data.decision;
             }
         } catch (error) {
-            console.error("[AI] Groq API Failed, falling back to local math:", error);
+            console.error("[AI] Falling back to math:", error);
         }
     }
 
     // Probability logic (fallback or for non-star players)
-    let bidProbability = 0.90; // Higher default probability
+    let bidProbability = 0.90;
     const pricePressure = nextBidAmount / bidValueLimit;
 
     if (!highestBidderId) {
-        bidProbability = 0.99; // Almost always take base price if not bidding
+        bidProbability = 0.99;
     } else {
-        if (pricePressure > 0.95) bidProbability = 0.15;
-        else if (pricePressure > 0.8) bidProbability = 0.45;
-        else if (pricePressure > 0.6) bidProbability = 0.75;
-        else bidProbability = 0.95; // Very aggressive when price is low relative to valuation
+        if (pricePressure > 0.98) bidProbability = 0.05;
+        else if (pricePressure > 0.90) bidProbability = 0.25;
+        else if (pricePressure > 0.70) bidProbability = 0.60;
+        else bidProbability = 0.95;
     }
 
-    // If desperate for role, increase probability
     if (currentRoleCount === 0 && pricePressure < 0.98) bidProbability = 0.98;
 
     return Math.random() < bidProbability;
