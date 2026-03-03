@@ -133,42 +133,51 @@ export function startHostLogic(roomId: string) {
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     let isProcessing = false;
 
-    // --- BOT BIDDING LOOP ---
-    const botLoopInterval = setInterval(async () => {
-        if (isProcessing) return;
+    // --- NATURAL BOT ENGINE (Recursive Timeout) ---
+    botInterval = true; // Use as a run flag
+    const runBotCycle = async () => {
+        if (!botInterval) return;
 
         const doc = await get(ref(rtdb, `rooms/${roomId}`));
         if (!doc.exists()) return;
         const data = doc.val();
-        if (data.auctionState.status !== 'bidding') return;
 
-        const auctionState: AuctionState = data.auctionState;
-        const teams: Team[] = data.teams;
-        const players: Player[] = data.players;
-        const currentPlayer = players[auctionState.currentPlayerIndex];
+        if (data.auctionState.status === 'bidding' && !isProcessing) {
+            const auctionState = data.auctionState;
+            const teams: Team[] = data.teams;
+            const players: Player[] = data.players;
+            const currentPlayer = players[auctionState.currentPlayerIndex];
 
-        const eligibleBots = teams.filter((t: Team) => t.isBot && t.id !== auctionState.highestBidderId);
-        if (eligibleBots.length === 0) return;
+            const eligibleBots = teams.filter((t: Team) => t.isBot && t.id !== auctionState.highestBidderId);
+            if (eligibleBots.length > 0) {
+                const bot = eligibleBots[Math.floor(Math.random() * eligibleBots.length)];
+                isProcessing = true;
+                try {
+                    const decision = await getBotDecision(bot, currentPlayer, auctionState.currentBid, auctionState.highestBidderId, players);
+                    if (decision) {
+                        // Human Thinking & Reaction: 1.0s to 3.0s (Randomized)
+                        const reactionTime = (currentPlayer.rating || 0) >= 4 ? 700 + Math.random() * 1000 : 1800 + Math.random() * 2000;
+                        await new Promise(r => setTimeout(r, reactionTime));
 
-        // CRITICAL: Evaluate 3 random bots every 300ms for high-intensity bidding
-        const pool = [...eligibleBots].sort(() => Math.random() - 0.5).slice(0, 3);
-
-        for (const bot of pool) {
-            isProcessing = true;
-            try {
-                const decision = await getBotDecision(bot, currentPlayer, auctionState.currentBid, auctionState.highestBidderId, players);
-                if (decision) {
-                    await new Promise(r => setTimeout(r, Math.random() * 200));
-                    await placeBid(roomId, bot.id);
-                    break;
+                        const check = await get(ref(rtdb, `rooms/${roomId}/auctionState`));
+                        if (check.exists() && check.val().status === 'bidding' && check.val().highestBidderId !== bot.id) {
+                            await placeBid(roomId, bot.id);
+                        }
+                    }
+                } catch (e) {
+                    console.error("[BOT ENGINE] Error:", e);
+                } finally {
+                    isProcessing = false;
                 }
-            } catch (e) {
-                console.error("[BOT LOOP] Error:", e);
-            } finally {
-                isProcessing = false;
             }
         }
-    }, 300);
+
+        // Variable cycle delay (0.4s to 1.6s) - avoids fixed cadence
+        const cycleDelay = 400 + Math.random() * 1200;
+        setTimeout(runBotCycle, cycleDelay);
+    };
+
+    runBotCycle();
 
 
     // --- TIMER & RESOLUTION LOOP ---
@@ -193,13 +202,11 @@ export function startHostLogic(roomId: string) {
         }
     }, 50);
 
-    // Store bot loop to clear it later
-    botInterval = botLoopInterval;
 }
 
 export function stopHostLogic() {
     if (hostInterval) clearInterval(hostInterval);
-    if (botInterval) clearInterval(botInterval);
+    botInterval = null; // Stops recursive bot loop
     if (hostUnsubscribe) hostUnsubscribe();
 }
 
