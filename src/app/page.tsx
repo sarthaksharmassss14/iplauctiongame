@@ -236,10 +236,11 @@ export default function Home() {
     const nextBidCost = auctionState.highestBidderId === null ? (currentPlayer.basePrice / 100) : auctionState.currentBid + 0.25;
     const hasMaxSquad = (myTeam?.squad?.length || 0) >= 21;
     const hasMaxForeign = currentPlayer.isForeign && (myTeam?.foreignCount || 0) >= 8;
-    const hasNoMoney = (myTeam?.budget || 0) < nextBidCost;
+    // Round to handle JS floating point precision (e.g., 1.00000000004 vs 1.0)
+    const hasNoMoney = Math.round((myTeam?.budget || 0) * 100) < Math.round(nextBidCost * 100);
 
     if (hasMaxSquad || hasMaxForeign || hasNoMoney) {
-      console.warn("[BID DENIED] Constraints not met", { hasMaxSquad, hasMaxForeign, hasNoMoney });
+      console.warn("[BID DENIED] Constraints not met", { hasMaxSquad, hasMaxForeign, hasNoMoney, myBudget: myTeam?.budget, nextBidCost });
       return;
     }
 
@@ -998,7 +999,8 @@ export default function Home() {
                       const nextBidCost = auctionState.highestBidderId === null ? (currentPlayer.basePrice / 100) : auctionState.currentBid + 0.25;
                       const hasMaxSquad = (myTeam?.squad?.length || 0) >= 21;
                       const hasMaxForeign = currentPlayer.isForeign && (myTeam?.foreignCount || 0) >= 8;
-                      const hasNoMoney = (myTeam?.budget || 0) < nextBidCost;
+                      // Use rounded comparison for budget safety
+                      const hasNoMoney = Math.round((myTeam?.budget || 0) * 100) < Math.round(nextBidCost * 100);
                       const isHolding = auctionState.highestBidderId === myTeamId;
                       const canBid = !isHolding && !hasMaxSquad && !hasMaxForeign && !hasNoMoney;
 

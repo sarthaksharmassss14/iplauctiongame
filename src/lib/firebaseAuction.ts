@@ -278,7 +278,7 @@ async function resolveRound(roomId: string, data: { auctionState: AuctionState, 
     if (auctionState.highestBidderId) {
         const winner = teams.find((t: Team) => t.id === auctionState.highestBidderId);
         if (winner) {
-            winner.budget -= auctionState.currentBid;
+            winner.budget = Number((winner.budget - auctionState.currentBid).toFixed(2));
             if (!winner.squad) winner.squad = [];
             winner.squad.push(player.id);
             if (player.isForeign) winner.foreignCount = (winner.foreignCount || 0) + 1;
@@ -403,10 +403,12 @@ export async function skipPlayerAction(roomId: string) {
                 player.soldPrice = 0;
                 auctionState.status = 'unsold';
             } else {
-                // If a bid started, we MUST sell. If no bot is eligible, it stays with the current winner.
-                // This preserves the integrity of the bid that already happened.
+                // If a bid started, we MUST sell.
+                // BUT if it's a manual SKIP by a human, and no bot is eligible, 
+                // we should NOT fallback to the human.
                 const fallbackWinner = teams.find(t => t.id === auctionState.highestBidderId);
-                if (fallbackWinner) {
+
+                if (fallbackWinner && fallbackWinner.isBot) {
                     actualP = auctionState.currentBid;
                     fallbackWinner.budget = Number((fallbackWinner.budget - actualP).toFixed(2));
                     if (!fallbackWinner.squad) fallbackWinner.squad = [];
@@ -416,6 +418,14 @@ export async function skipPlayerAction(roomId: string) {
                     player.soldPrice = actualP;
                     player.teamId = fallbackWinner.id;
                     auctionState.status = 'sold';
+                } else {
+                    // It was a human winner or something went wrong? Reset to unsold because they pressed SKIP.
+                    player.status = 'unsold';
+                    player.teamId = null;
+                    player.soldPrice = 0;
+                    auctionState.status = 'unsold';
+                    auctionState.highestBidderId = null;
+                    auctionState.currentBid = baseInCr;
                 }
             }
             auctionState.timer = 0;
