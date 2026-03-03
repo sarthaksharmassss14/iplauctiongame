@@ -84,17 +84,6 @@ A high-performance, ultra-realtime IPL Auction simulation platform. Build your d
    ```
 
 Open [http://localhost:3000](http://localhost:3000) with your friends to start the action!
-
----
-
-## 📈 Optimization Notes
-
-### Floating Point Budget Fix
-The system uses rounded integer arithmetic (`Math.round(val * 100)`) for all budget to bid comparisons to prevent the common JavaScript floating-point bug where players couldn't bid with an exact 1.00 Cr purse.
-
-### Network Efficiency
-By moving away from per-second database writes for the timer, network traffic has been reduced by ~80%, allowing the game to sustain 10+ concurrent human players without lag spikes.
-
 ---
 
 ## 📝 License
