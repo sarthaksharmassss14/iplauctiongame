@@ -42,6 +42,7 @@ export interface AuctionState {
     currentBid: number;
     highestBidderId: string | null;
     timer: number;
+    timerEndsAt?: number;
     joinedPlayers: number;
     maxHumans: number;
     hostId: string;

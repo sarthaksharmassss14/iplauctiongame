@@ -106,8 +106,10 @@ export async function placeBid(roomId: string, teamId: string) {
             state.currentBid = Number((state.currentBid + 0.25).toFixed(2));
         }
 
+        const duration = state.isAccelerated ? 4000 : 7000;
         state.highestBidderId = teamId;
-        state.timer = state.isAccelerated ? 4 : 7;
+        state.timer = state.isAccelerated ? 4 : 7; // Keep for legacy UI
+        state.timerEndsAt = Date.now() + duration;
         return state;
     });
 }
@@ -164,19 +166,29 @@ export function startHostLogic(roomId: string) {
         const doc = await get(ref(rtdb, `rooms/${roomId}/auctionState`));
         if (!doc.exists()) return;
         const state: AuctionState = doc.val();
+
         if (state.status === 'starting' || state.status === 'bidding') {
-            if (state.timer > 0) {
-                await runTransaction(ref(rtdb, `rooms/${roomId}/auctionState/timer`), (t) => (t > 0 ? t - 1 : t));
-            } else if (!isProcessingResolve) {
+            const now = Date.now();
+            const endsAt = state.timerEndsAt || (now + (state.timer * 1000));
+
+            if (now >= endsAt && !isProcessingResolve) {
                 const fullDoc = await get(ref(rtdb, `rooms/${roomId}`));
                 if (fullDoc.exists()) {
                     isProcessingResolve = true;
                     await resolveRound(roomId, fullDoc.val());
                     isProcessingResolve = false;
                 }
+            } else if (state.timer > 0) {
+                // For legacy UI support, we can update the timer but only locally or 
+                // sparingly if needed. But let's avoid writes for 10s efficiency.
+                // We'll update the 'timer' field every few seconds to keep legacy UI alive
+                const remaining = Math.max(0, Math.ceil((endsAt - now) / 1000));
+                if (remaining !== state.timer && remaining % 2 === 0) { // Update every 2s
+                    update(ref(rtdb, `rooms/${roomId}/auctionState`), { timer: remaining });
+                }
             }
         }
-    }, 1000);
+    }, 500); // Check more frequently but don't write
 }
 
 export function stopHostLogic() {
@@ -185,7 +197,11 @@ export function stopHostLogic() {
 }
 
 export async function forceStartAuction(roomId: string) {
-    await update(ref(rtdb, `rooms/${roomId}/auctionState`), { status: 'starting', timer: 5 });
+    await update(ref(rtdb, `rooms/${roomId}/auctionState`), {
+        status: 'starting',
+        timer: 5,
+        timerEndsAt: Date.now() + 5000
+    });
 }
 
 export async function endAuction(roomId: string) {
@@ -244,11 +260,13 @@ async function startNewRound(roomId: string, data: { auctionState: AuctionState,
         return;
     }
     const player = players[auctionState.currentPlayerIndex];
+    const duration = 10000; // 10s for new round
     await update(ref(rtdb, `rooms/${roomId}/auctionState`), {
         status: 'bidding',
         currentBid: player.basePrice / 100,
         highestBidderId: null,
-        timer: 10, // Standard timer for new round
+        timer: 10,
+        timerEndsAt: Date.now() + duration,
         skipInProgress: false // ALWAYS RESET ON NEW ROUND
     });
 }

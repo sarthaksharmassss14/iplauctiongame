@@ -21,6 +21,8 @@ export default function Home() {
   const [userName, setUserName] = useState("");
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [teamSheetId, setTeamSheetId] = useState<string | null>(null);
+  const [localTimer, setLocalTimer] = useState(0);
+  const [serverOffset, setServerOffset] = useState(0);
 
   // Lobby State
   const [pageMode, setPageMode] = useState<'initial' | 'host' | 'join' | 'lobby' | 'auction' | 'loading'>('loading');
@@ -169,6 +171,34 @@ export default function Home() {
       });
     }
   }, [isJoined, roomId, isHost, pageMode, userName, selectedTeamId]);
+
+  // Sync Server Time Offset
+  useEffect(() => {
+    const offsetRef = ref(rtdb, ".info/serverTimeOffset");
+    onValue(offsetRef, (snap) => {
+      setServerOffset(snap.val() || 0);
+    });
+  }, []);
+
+  // Local Precise Timer Effect
+  useEffect(() => {
+    if (!auctionState) return;
+
+    if (!auctionState.timerEndsAt) {
+      setLocalTimer(auctionState.timer || 0);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = Date.now() + serverOffset;
+      const diff = Math.max(0, Math.ceil((auctionState.timerEndsAt - now) / 1000));
+      setLocalTimer(diff);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 200);
+    return () => clearInterval(interval);
+  }, [auctionState?.timerEndsAt, auctionState?.timer, serverOffset]);
 
   // Host Core Logic Launcher
   useEffect(() => {
@@ -952,11 +982,11 @@ export default function Home() {
                       <span style={{ background: 'rgba(255,255,255,0.1)', color: 'white', padding: '4px 12px', borderRadius: '30px', fontSize: '10px', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '1px' }}>{currentPlayer.country}</span>
                       <span style={{ fontSize: '9px', fontWeight: 800, color: '#ef4444', letterSpacing: '1px', marginLeft: '2px', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap' }}>⚠ YOU NEED MIN 15 PLAYERS</span>
                       <motion.div
-                        animate={auctionState?.timer <= 3 ? { scale: [1, 1.1, 1], boxShadow: ["0px 0px 0px rgba(239,68,68,0)", "0px 0px 30px rgba(239,68,68,0.8)", "0px 0px 0px rgba(239,68,68,0)"] } : {}}
+                        animate={localTimer <= 3 ? { scale: [1, 1.1, 1], boxShadow: ["0px 0px 0px rgba(239,68,68,0)", "0px 0px 30px rgba(239,68,68,0.8)", "0px 0px 0px rgba(239,68,68,0)"] } : {}}
                         transition={{ repeat: Infinity, duration: 0.6 }}
-                        style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', background: auctionState?.timer <= 3 ? '#ef4444' : 'rgba(255,255,255,0.05)', color: auctionState?.timer <= 3 ? '#fff' : 'var(--accent)', border: `1px solid ${auctionState?.timer <= 3 ? '#ef4444' : 'rgba(255,255,255,0.1)'}`, padding: '4px 14px', borderRadius: '30px', fontSize: '12px', fontWeight: 950, letterSpacing: '1px', transition: auctionState?.timer <= 3 ? 'none' : 'all 0.3s' }}>
+                        style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', background: localTimer <= 3 ? '#ef4444' : 'rgba(255,255,255,0.05)', color: localTimer <= 3 ? '#fff' : 'var(--accent)', border: `1px solid ${localTimer <= 3 ? '#ef4444' : 'rgba(255,255,255,0.1)'}`, padding: '4px 14px', borderRadius: '30px', fontSize: '12px', fontWeight: 950, letterSpacing: '1px', transition: localTimer <= 3 ? 'none' : 'all 0.3s' }}>
                         <Timer size={14} />
-                        {auctionState?.timer <= 3 ? `FINAL CALL : ${auctionState?.timer}S` : `${auctionState?.timer}S`}
+                        {localTimer <= 3 && localTimer > 0 ? `FINAL CALL : ${localTimer}S` : `${localTimer}S`}
                       </motion.div>
                     </div>
                     <h1 style={{ fontSize: 'clamp(2rem, 3.5vw, 4rem)', fontWeight: 950, lineHeight: 1.1, marginBottom: '32px', letterSpacing: '-2px' }}>{currentPlayer.name}</h1>
@@ -1208,7 +1238,7 @@ export default function Home() {
                         />
                         <Timer size={120} color="var(--accent)" />
                         <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '2.5rem', fontWeight: 950, color: 'white' }}>
-                          {auctionState?.timer || ''}
+                          {localTimer || ''}
                         </span>
                       </div>
                       <h2 style={{ fontSize: '4rem', fontWeight: 950, color: 'white', marginBottom: '16px', letterSpacing: '-1px' }}>PREPARING ARENA</h2>
