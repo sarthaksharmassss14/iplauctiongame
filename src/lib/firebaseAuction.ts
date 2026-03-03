@@ -125,52 +125,55 @@ let isProcessingResolve = false;
 let hostUnsubscribe: Unsubscribe | null = null;
 
 export function startHostLogic(roomId: string) {
-    if (hostInterval) clearInterval(hostInterval);
+    if (hostInterval) {
+        if ((hostInterval as any)._botLoop) clearInterval((hostInterval as any)._botLoop);
+        clearInterval(hostInterval);
+    }
     if (hostUnsubscribe) hostUnsubscribe();
 
     const roomRef = ref(rtdb, `rooms/${roomId}`);
     let isProcessing = false;
 
-    hostUnsubscribe = onValue(roomRef, async (snapshot) => {
+    // --- BOT BIDDING LOOP (Independent of onValue) ---
+    const botLoopInterval = setInterval(async () => {
         if (isProcessing) return;
-        const data = snapshot.val();
-        if (!data || data.auctionState.status !== 'bidding') return;
+
+        const doc = await get(ref(rtdb, `rooms/${roomId}`));
+        if (!doc.exists()) return;
+        const data = doc.val();
+
+        if (data.auctionState.status !== 'bidding') return;
 
         const auctionState: AuctionState = data.auctionState;
         const teams: Team[] = data.teams;
+        const players: Player[] = data.players;
+        const currentPlayer = players[auctionState.currentPlayerIndex];
+
+        // Only bots who ARE NOT the current highest bidder can bid
         const eligibleBots = teams.filter((t: Team) => t.isBot && t.id !== auctionState.highestBidderId);
         if (eligibleBots.length === 0) return;
 
-        const player: Player = data.players[auctionState.currentPlayerIndex];
-        const isStar = (player?.rating || 0) >= 4;
-
-        // BOTS are now much faster, especially for star players
-        const reactionDelay = !auctionState.highestBidderId
-            ? (isStar ? 800 + Math.random() * 1000 : 2500 + Math.random() * 1500)
-            : (isStar ? 400 + Math.random() * 800 : 1000 + Math.random() * 1200);
+        // Pick a random bot to evaluate
+        const bot = eligibleBots[Math.floor(Math.random() * eligibleBots.length)];
 
         isProcessing = true;
-        setTimeout(async () => {
-            try {
-                const freshDoc = await get(ref(rtdb, `rooms/${roomId}`));
-                if (!freshDoc.exists()) return;
-                const freshData = freshDoc.val();
-                if (freshData.auctionState.status !== 'bidding') return;
-
-                const botToBid = (freshData.teams as Team[] || []).filter((t: Team) => t.isBot && t.id !== freshData.auctionState.highestBidderId);
-                if (botToBid.length > 0) {
-                    const bot = botToBid[Math.floor(Math.random() * botToBid.length)];
-                    const player: Player = freshData.players[freshData.auctionState.currentPlayerIndex];
-                    if (await getBotDecision(bot, player, freshData.auctionState.currentBid, freshData.auctionState.highestBidderId, freshData.players)) {
-                        await placeBid(roomId, bot.id);
-                    }
-                }
-            } finally {
-                isProcessing = false;
+        try {
+            const decision = await getBotDecision(bot, currentPlayer, auctionState.currentBid, auctionState.highestBidderId, players);
+            if (decision) {
+                // Add a small natural-feeling delay before the bid is actually placed
+                const isStar = (currentPlayer.rating || 0) >= 4;
+                const reactionTime = isStar ? 400 + Math.random() * 800 : 1200 + Math.random() * 1000;
+                await new Promise(r => setTimeout(r, reactionTime));
+                await placeBid(roomId, bot.id);
             }
-        }, reactionDelay);
-    });
+        } catch (e) {
+            console.error("[BOT LOOP] Error:", e);
+        } finally {
+            isProcessing = false;
+        }
+    }, 1200); // Check every 1.2s for bot activity
 
+    // --- TIMER & RESOLUTION LOOP ---
     hostInterval = setInterval(async () => {
         const doc = await get(ref(rtdb, `rooms/${roomId}/auctionState`));
         if (!doc.exists()) return;
@@ -185,18 +188,22 @@ export function startHostLogic(roomId: string) {
                 if (fullDoc.exists()) {
                     isProcessingResolve = true;
                     console.log(`[HOST] Timer Expired. Resolving at ${now} vs endsAt ${endsAt}`);
-                    // Double check status before resolution inside transaction if needed,
-                    // but here we just proceed to resolve.
                     await resolveRound(roomId, fullDoc.val());
                     isProcessingResolve = false;
                 }
             }
         }
     }, 50);
+
+    // Store bot loop to clear it later
+    (hostInterval as any)._botLoop = botLoopInterval;
 }
 
 export function stopHostLogic() {
-    if (hostInterval) clearInterval(hostInterval);
+    if (hostInterval) {
+        if ((hostInterval as any)._botLoop) clearInterval((hostInterval as any)._botLoop);
+        clearInterval(hostInterval);
+    }
     if (hostUnsubscribe) hostUnsubscribe();
 }
 

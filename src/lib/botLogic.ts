@@ -72,9 +72,9 @@ export async function getBotDecision(team: Team, currentPlayer: Player, currentB
     // 5. HARD CAPS & REALISM
     let bidValueLimit = baseInCr * finalMultiplier;
 
-    // Harder caps for balance but allowed to go higher
-    const ABSOLUTE_MAX_BID = 24.50; // Increased to reflect real IPL record prices (Starc/Cummins)
-    const ratingCaps: Record<number, number> = { 5: 24.50, 4: 15.0, 3: 8.5, 2: 4.5 };
+    // HARD CAPS (User Rule: Max 18 Cr)
+    const ABSOLUTE_MAX_BID = 18.0;
+    const ratingCaps: Record<number, number> = { 5: 18.0, 4: 12.0, 3: 7.0, 2: 3.5 };
     const hardCap = Math.min(ABSOLUTE_MAX_BID, ratingCaps[rating] || 5.0);
 
     bidValueLimit = Math.min(bidValueLimit, hardCap);
