@@ -511,34 +511,58 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {(pageMode === 'initial' || pageMode === 'host' || pageMode === 'join') && (
-          <div style={{ width: '100%', maxWidth: '800px', position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {pageMode === 'initial' && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 0 }}>
+            <img
+              src="/landing-bg-v2.jpg"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }}
+              alt="Auction Background"
+            />
+            <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at center, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.9) 100%)' }} />
+          </div>
+        )}
 
-            {/* Glowing Orbs for Glass Refraction */}
-            <div style={{ position: 'absolute', top: '50%', left: '-20%', transform: 'translateY(-50%)', width: '350px', height: '350px', background: 'var(--csk-yellow)', filter: 'blur(100px)', opacity: 0.15, pointerEvents: 'none', zIndex: -1 }}></div>
-            <div style={{ position: 'absolute', top: '50%', right: '-20%', transform: 'translateY(-50%)', width: '350px', height: '350px', background: 'var(--dc-blue)', filter: 'blur(100px)', opacity: 0.3, pointerEvents: 'none', zIndex: -1 }}></div>
+        {(pageMode === 'initial' || pageMode === 'host' || pageMode === 'join') && (
+          <div style={{ width: '100%', maxWidth: '1000px', position: 'relative', zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
             {pageMode === 'initial' ? (
-              <div className="glass" style={{ display: 'flex', gap: '20px', width: '100%', maxWidth: '750px', padding: '25px', marginBottom: '40px' }}>
-                <button
-                  className="btn-primary"
-                  style={{ flex: 1, height: '180px', fontSize: '1.6rem', position: 'relative' }}
-                  onClick={() => setPageMode('host')}
-                >
-                  <div style={{ fontSize: '10px', letterSpacing: '4px', marginBottom: '10px', opacity: 0.6 }}>START NEW</div>
-                  HOST <br /> GAME
-                </button>
-                <button
-                  className="btn-secondary glass"
-                  style={{ flex: 1, height: '180px', fontSize: '1.6rem', background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.15)', boxShadow: 'inset 0 0 20px rgba(255,255,255,0.05)', color: '#fff', transition: 'all 0.3s' }}
-                  onClick={() => setPageMode('join')}
-                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
-                  onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
-                >
-                  <div style={{ fontSize: '10px', letterSpacing: '4px', marginBottom: '10px', opacity: 0.8, fontWeight: 900 }}>ENTER CODE</div>
-                  JOIN <br /> GAME
-                </button>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+              >
+
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', width: '100%', maxWidth: '850px' }}>
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -10 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="glass"
+                    style={{ cursor: 'pointer', padding: '40px', border: '1px solid rgba(255,255,255,0.2)', background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.02) 100%)', textAlign: 'center', minHeight: '300px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
+                    onClick={() => setPageMode('host')}
+                  >
+
+                    <div style={{ fontSize: '3.5rem', fontWeight: 950, lineHeight: 1, marginBottom: '10px' }}>HOST</div>
+                    <div style={{ fontSize: '1.2rem', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>START A NEW AUCTION ROOM</div>
+                  </motion.div>
+
+                  <motion.div
+                    whileHover={{ scale: 1.05, y: -10 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="glass"
+                    style={{ cursor: 'pointer', padding: '40px', border: '1px solid rgba(255,255,255,0.2)', background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.02) 100%)', textAlign: 'center', minHeight: '300px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}
+                    onClick={() => setPageMode('join')}
+                  >
+
+                    <div style={{ fontSize: '3.5rem', fontWeight: 950, lineHeight: 1, marginBottom: '10px' }}>JOIN</div>
+                    <div style={{ fontSize: '1.2rem', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>ENTER AN EXISTING ROOM</div>
+                  </motion.div>
+                </div>
+
+                <div style={{ marginTop: '60px', color: 'rgba(255,255,255,0.3)', fontSize: '11px', fontWeight: 800, letterSpacing: '2px' }}>
+                  EXPERIENCE THE THRILL OF TATA IPL 2025 AUCTION
+                </div>
+              </motion.div>
             ) : (
               <>
                 <div className="glass" style={{ width: '100%', maxWidth: '650px', padding: '70px 35px 25px', marginBottom: '30px', position: 'relative' }}>
